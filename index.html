@@ -158,16 +158,109 @@
       overflow: hidden;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
       border: 1px solid var(--border-soft);
+      user-select: none;
     }
 
-    .video-box video,
-    .video-box iframe {
+    .video-box video {
       width: 100%;
       height: 100%;
       border: none;
       display: block;
       object-fit: contain;
       background: #000;
+    }
+
+    /* Zoom tipis pada iframe untuk menyembunyikan bar judul & logo YouTube/Twitch */
+    .video-box iframe {
+      position: absolute;
+      top: -6%;
+      left: -2%;
+      width: 104%;
+      height: 112%;
+      border: none;
+      display: block;
+      background: #000;
+      pointer-events: none; /* Mencegah klik langsung ke dalam iframe */
+    }
+
+    /* SHIELD OVERLAY: Memblokir klik pada frame & menampilkan kontrol kustom */
+    .iframe-shield {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: transparent;
+    }
+
+    .iframe-shield.hidden {
+      display: none;
+    }
+
+    .shield-top {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .shield-bottom {
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .video-box:hover .shield-top,
+    .video-box:hover .shield-bottom,
+    .iframe-shield.paused .shield-top,
+    .iframe-shield.paused .shield-bottom {
+      opacity: 1;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ctrl-btn {
+      background: rgba(20, 20, 26, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #fff;
+      padding: 7px 13px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      backdrop-filter: blur(8px);
+      transition: background 0.15s;
+    }
+
+    .ctrl-btn:hover {
+      background: rgba(255, 46, 99, 0.85);
+      border-color: transparent;
+    }
+
+    .broadcast-tag {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.75);
+      background: rgba(0,0,0,0.55);
+      padding: 4px 10px;
+      border-radius: 6px;
     }
 
     /* THUMBNAIL / STANDBY COVER */
@@ -511,6 +604,9 @@
       .show-title {
         font-size: 1.2rem;
       }
+      .shield-top, .shield-bottom {
+        opacity: 1;
+      }
     }
   </style>
 </head>
@@ -543,7 +639,7 @@
     
     <!-- VIDEO & DETAILS -->
     <div class="player-wrapper">
-      <div class="video-box">
+      <div class="video-box" id="video-box">
         <!-- Thumbnail / Cover sebelum live dimulai -->
         <div class="thumbnail-cover" id="thumbnail-cover">
           <div class="cover-info">
@@ -553,7 +649,21 @@
           </div>
         </div>
 
-        <video id="video-player" controls playsinline></video>
+        <!-- Pelindung Klik Iframe & Kontrol ZY Stream -->
+        <div class="iframe-shield hidden" id="iframe-shield" oncontextmenu="return false;">
+          <div class="shield-top">
+            <span class="broadcast-tag">ZY STREAM BROADCAST</span>
+          </div>
+          <div class="shield-bottom">
+            <div class="ctrl-group">
+              <button type="button" class="ctrl-btn" id="btn-yt-mute" onclick="toggleYoutubeMute()">🔊 Suara</button>
+              <button type="button" class="ctrl-btn" onclick="refreshPlayer()">↻ Sinkron Live</button>
+            </div>
+            <button type="button" class="ctrl-btn" onclick="toggleFullscreen()">⛶ Layar Penuh</button>
+          </div>
+        </div>
+
+        <video id="video-player" controls controlsList="nodownload" oncontextmenu="return false;" playsinline></video>
         <iframe id="iframe-player" style="display:none;" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
       </div>
 
@@ -628,8 +738,10 @@
     const viewersRef = db.ref(`streams/${SITE_ID}/viewers`);
     const chatRef = db.ref(`streams/${SITE_ID}/chat`);
 
+    const videoBoxEl = document.getElementById("video-box");
     const videoEl = document.getElementById("video-player");
     const iframeEl = document.getElementById("iframe-player");
+    const shieldEl = document.getElementById("iframe-shield");
     const coverEl = document.getElementById("thumbnail-cover");
     const liveBadgeEl = document.getElementById("live-badge");
     const liveTextEl = document.getElementById("live-text");
@@ -638,6 +750,7 @@
 
     let currentData = null;
     let hls = null;
+    let isMuted = false;
 
     // 1. REAL-TIME JUMLAH PENONTON AKTIF
     const myPresenceRef = viewersRef.push();
@@ -657,30 +770,33 @@
       const url = rawUrl.trim();
       const host = window.location.hostname || "localhost";
 
-      // A. Deteksi YouTube (watch?v=, youtu.be/, live/, embed/, shorts/)
+      // A. Deteksi YouTube (kontrol bawaan disembunyikan & JS API aktif)
       const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
       if (ytMatch && ytMatch[1]) {
         return {
           mode: "iframe",
-          src: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0&modestbranding=1`
+          platform: "youtube",
+          src: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=0&disablekb=1&fs=0&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1`
         };
       }
 
-      // B. Deteksi Twitch Video VOD (twitch.tv/videos/123456)
+      // B. Deteksi Twitch Video VOD
       const twitchVod = url.match(/twitch\.tv\/videos\/(\d+)/);
       if (twitchVod && twitchVod[1]) {
         return {
           mode: "iframe",
-          src: `https://player.twitch.tv/?video=${twitchVod[1]}&parent=${host}&autoplay=true`
+          platform: "twitch",
+          src: `https://player.twitch.tv/?video=${twitchVod[1]}&parent=${host}&autoplay=true&controls=false`
         };
       }
 
-      // C. Deteksi Twitch Channel Live (twitch.tv/nama_channel)
+      // C. Deteksi Twitch Channel Live
       const twitchChan = url.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)(?:\/)?(?:\?.*)?$/);
       if (twitchChan && twitchChan[1] && twitchChan[1].toLowerCase() !== "directory") {
         return {
           mode: "iframe",
-          src: `https://player.twitch.tv/?channel=${twitchChan[1]}&parent=${host}&autoplay=true`
+          platform: "twitch",
+          src: `https://player.twitch.tv/?channel=${twitchChan[1]}&parent=${host}&autoplay=true&controls=false`
         };
       }
 
@@ -689,6 +805,7 @@
       if (gdriveMatch && gdriveMatch[1]) {
         return {
           mode: "iframe",
+          platform: "gdrive",
           src: `https://drive.google.com/file/d/${gdriveMatch[1]}/preview`
         };
       }
@@ -703,8 +820,32 @@
         return { mode: "mp4", src: url };
       }
 
-      // G. Default: Iframe embed lainnya (Kick, Dailymotion, Vimeo, dll)
-      return { mode: "iframe", src: url };
+      // G. Default: Iframe embed lainnya
+      return { mode: "iframe", platform: "other", src: url };
+    }
+
+    // Kontrol Suara untuk YouTube Iframe
+    function toggleYoutubeMute() {
+      isMuted = !isMuted;
+      const btn = document.getElementById("btn-yt-mute");
+      btn.textContent = isMuted ? "🔇 Bisukan" : "🔊 Suara";
+
+      if (iframeEl && iframeEl.contentWindow) {
+        iframeEl.contentWindow.postMessage(JSON.stringify({
+          event: "command",
+          func: isMuted ? "mute" : "unMute",
+          args: []
+        }), "*");
+      }
+    }
+
+    // Kontrol Fullscreen Custom
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        videoBoxEl.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
     }
 
     // 3. REAL-TIME DATA SIARAN & THUMBNAIL
@@ -775,9 +916,11 @@
       if (media.mode === "iframe") {
         videoEl.style.display = "none";
         iframeEl.style.display = "block";
+        shieldEl.classList.remove("hidden"); // Aktifkan pelindung klik iframe
         iframeEl.src = media.src;
       } else if (media.mode === "hls") {
         iframeEl.style.display = "none";
+        shieldEl.classList.add("hidden");
         videoEl.style.display = "block";
 
         if (Hls.isSupported()) {
@@ -793,6 +936,7 @@
         }
       } else {
         iframeEl.style.display = "none";
+        shieldEl.classList.add("hidden");
         videoEl.style.display = "block";
         videoEl.src = media.src;
         videoEl.play().catch(() => {});
@@ -810,6 +954,7 @@
       videoEl.style.display = "none";
       iframeEl.src = "";
       iframeEl.style.display = "none";
+      shieldEl.classList.add("hidden");
     }
 
     function refreshPlayer() {
