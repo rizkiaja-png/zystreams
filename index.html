@@ -554,7 +554,7 @@
         </div>
 
         <video id="video-player" controls playsinline></video>
-        <iframe id="iframe-player" style="display:none;" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>
+        <iframe id="iframe-player" style="display:none;" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
       </div>
 
       <div class="show-details">
@@ -652,7 +652,62 @@
       document.getElementById("viewer-count").textContent = snap.numChildren().toLocaleString("id-ID");
     });
 
-    // 2. REAL-TIME DATA SIARAN & THUMBNAIL
+    // 2. UNIVERSAL LINK RESOLVER (YouTube, Twitch, Google Drive, HLS, MP4, Iframe)
+    function resolveMediaSource(rawUrl, forcedType) {
+      const url = rawUrl.trim();
+      const host = window.location.hostname || "localhost";
+
+      // A. Deteksi YouTube (watch?v=, youtu.be/, live/, embed/, shorts/)
+      const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+      if (ytMatch && ytMatch[1]) {
+        return {
+          mode: "iframe",
+          src: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0&modestbranding=1`
+        };
+      }
+
+      // B. Deteksi Twitch Video VOD (twitch.tv/videos/123456)
+      const twitchVod = url.match(/twitch\.tv\/videos\/(\d+)/);
+      if (twitchVod && twitchVod[1]) {
+        return {
+          mode: "iframe",
+          src: `https://player.twitch.tv/?video=${twitchVod[1]}&parent=${host}&autoplay=true`
+        };
+      }
+
+      // C. Deteksi Twitch Channel Live (twitch.tv/nama_channel)
+      const twitchChan = url.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)(?:\/)?(?:\?.*)?$/);
+      if (twitchChan && twitchChan[1] && twitchChan[1].toLowerCase() !== "directory") {
+        return {
+          mode: "iframe",
+          src: `https://player.twitch.tv/?channel=${twitchChan[1]}&parent=${host}&autoplay=true`
+        };
+      }
+
+      // D. Deteksi Google Drive Video
+      const gdriveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (gdriveMatch && gdriveMatch[1]) {
+        return {
+          mode: "iframe",
+          src: `https://drive.google.com/file/d/${gdriveMatch[1]}/preview`
+        };
+      }
+
+      // E. Deteksi HLS (.m3u8)
+      if (forcedType === "hls" || url.toLowerCase().includes(".m3u8")) {
+        return { mode: "hls", src: url };
+      }
+
+      // F. Deteksi Video Langsung (.mp4 / .webm)
+      if (forcedType === "mp4" || /\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
+        return { mode: "mp4", src: url };
+      }
+
+      // G. Default: Iframe embed lainnya (Kick, Dailymotion, Vimeo, dll)
+      return { mode: "iframe", src: url };
+    }
+
+    // 3. REAL-TIME DATA SIARAN & THUMBNAIL
     streamRef.on("value", (snap) => {
       const data = snap.val();
 
@@ -690,7 +745,7 @@
       if (status === "LIVE" && data.streamUrl && data.streamUrl.trim() !== "") {
         coverEl.classList.add("hidden");
         if (prevUrl !== data.streamUrl || prevType !== data.streamType || prevStatus !== "LIVE") {
-          playStream(data.streamUrl.trim(), data.streamType || "hls");
+          playStream(data.streamUrl.trim(), data.streamType || "auto");
         }
       } else {
         stopStream();
@@ -713,32 +768,33 @@
       }
     }
 
-    function playStream(url, type) {
+    function playStream(rawUrl, type) {
       stopStream();
+      const media = resolveMediaSource(rawUrl, type);
 
-      if (type === "iframe") {
+      if (media.mode === "iframe") {
         videoEl.style.display = "none";
         iframeEl.style.display = "block";
-        iframeEl.src = url;
-      } else if (type === "hls" || url.includes(".m3u8")) {
+        iframeEl.src = media.src;
+      } else if (media.mode === "hls") {
         iframeEl.style.display = "none";
         videoEl.style.display = "block";
 
         if (Hls.isSupported()) {
           hls = new Hls({ lowLatencyMode: true });
-          hls.loadSource(url);
+          hls.loadSource(media.src);
           hls.attachMedia(videoEl);
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             videoEl.play().catch(() => {});
           });
         } else if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
-          videoEl.src = url;
+          videoEl.src = media.src;
           videoEl.play().catch(() => {});
         }
       } else {
         iframeEl.style.display = "none";
         videoEl.style.display = "block";
-        videoEl.src = url;
+        videoEl.src = media.src;
         videoEl.play().catch(() => {});
       }
     }
@@ -758,7 +814,7 @@
 
     function refreshPlayer() {
       if (currentData && currentData.status === "LIVE" && currentData.streamUrl) {
-        playStream(currentData.streamUrl.trim(), currentData.streamType || "hls");
+        playStream(currentData.streamUrl.trim(), currentData.streamType || "auto");
       }
     }
 
@@ -770,7 +826,7 @@
       });
     }
 
-    // 3. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
+    // 4. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
     const EXPIRE_MS = 2 * 60 * 1000;
     const shownKeys = new Set();
     const avatarColors = ["#e11d48", "#7c3aed", "#2563eb", "#059669", "#d97706", "#db2777"];
