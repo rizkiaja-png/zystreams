@@ -585,17 +585,18 @@
 </head>
 <body>
 
-  <!-- PIN LOCK SCREEN -->
+   <!-- PIN LOCK SCREEN -->
   <div class="lock-screen" id="lock-screen">
-    <form class="lock-box" onsubmit="unlockAdmin(event)">
+    <div class="lock-box">
       <div class="lock-logo">ZY</div>
       <h2>ZY Stream Control</h2>
       <p>Masukkan PIN operator untuk mengelola siaran langsung.</p>
-      <input type="password" id="pin-input" class="form-control" placeholder="Masukkan PIN..." style="text-align:center; letter-spacing: 4px; font-weight:700; margin-bottom:12px;" required />
-      <button type="submit" class="btn btn-save" style="width:100%;">Masuk Studio</button>
+      <input type="password" id="pin-input" class="form-control" placeholder="Masukkan PIN..." style="text-align:center; letter-spacing: 4px; font-weight:700; margin-bottom:12px;" onkeydown="if(event.key==='Enter') unlockAdmin()" />
+      <button type="button" class="btn btn-save" style="width:100%;" onclick="unlockAdmin()">Masuk Studio</button>
       <div class="lock-error" id="lock-error">PIN salah. Silakan coba lagi.</div>
-    </form>
+    </div>
   </div>
+
 
   <!-- HEADER -->
   <header class="header">
@@ -746,16 +747,16 @@
       document.getElementById("lock-screen").classList.add("hidden");
     }
 
-    function unlockAdmin(e) {
-      e.preventDefault();
+    function unlockAdmin() {
       const val = document.getElementById("pin-input").value.trim();
-      if (val === ADMIN_PIN) {
+      if (val === "2026") {
         sessionStorage.setItem("zy_admin_unlocked", "true");
         document.getElementById("lock-screen").classList.add("hidden");
       } else {
         document.getElementById("lock-error").style.display = "block";
       }
     }
+
 
     function showToast(msg) {
       const t = document.getElementById("toast");
