@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZY STREAM — Broadcast Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Firebase Realtime Database -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-body: #0c0c10;
+      --bg-card: #14141a;
+      --bg-input: #1c1c24;
+      --bg-hover: #22222c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text-white: #ffffff;
+      --text-gray: #a1a1b2;
+      --text-dim: #6e6e80;
+      --accent: #ff2e63;
+      --gold: #f5b041;
+      --green: #10b981;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg-body);
+      color: var(--text-white);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* LOCK SCREEN */
+    .lock-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--bg-body);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 999;
+    }
+
+    .lock-screen.hidden {
+      display: none;
+    }
+
+    .lock-box {
+      width: 100%;
+      max-width: 380px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 28px;
+      text-align: center;
+    }
+
+    .lock-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #ff2e63, #9b2cff);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.05rem;
+      margin-bottom: 16px;
+    }
+
+    .lock-box h2 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .lock-box p {
+      font-size: 0.85rem;
+      color: var(--text-gray);
+      margin-bottom: 20px;
+    }
+
+    .lock-error {
+      color: var(--accent);
+      font-size: 0.8rem;
+      margin-top: 10px;
+      display: none;
+    }
+
+    /* HEADER */
+    .header {
+      height: 64px;
+      padding: 0 32px;
+      background: rgba(12, 12, 16, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #ff2e63, #9b2cff);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.85rem;
+    }
+
+    .brand-title {
+      font-weight: 800;
+      font-size: 1.1rem;
+    }
+
+    .badge-studio {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 6px;
+      background: rgba(245, 176, 65, 0.15);
+      color: var(--gold);
+    }
+
+    .total-viewers-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-gray);
+    }
+
+    .total-viewers-pill strong {
+      color: var(--text-white);
+    }
+
+    /* MAIN WRAPPER */
+    .main-container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 32px 60px;
+    }
+
+    /* 7 STREAM SELECTOR TABS */
+    .stream-tabs {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .stream-tab {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      text-align: left;
+      color: var(--text-white);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      font-family: inherit;
+    }
+
+    .stream-tab:hover {
+      background: var(--bg-hover);
+    }
+
+    .stream-tab.active {
+      border-color: var(--accent);
+      background: rgba(255, 46, 99, 0.1);
+    }
+
+    .tab-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .tab-id {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--text-gray);
+    }
+
+    .stream-tab.active .tab-id {
+      color: var(--text-white);
+    }
+
+    .tab-status {
+      font-size: 0.66rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-dim);
+    }
+
+    .tab-status.live {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .tab-status.ended {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-dim);
+    }
+
+    .tab-viewers {
+      font-size: 0.8rem;
+      color: var(--text-gray);
+      font-weight: 600;
+    }
+
+    /* EDITOR GRID */
+    .editor-grid {
+      display: grid;
+      grid-template-columns: 1fr 390px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .panel-header h2 {
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+
+    /* STATUS SWITCHER BUTTONS */
+    .status-group {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .status-option {
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--bg-input);
+      border: 1px solid transparent;
+      color: var(--text-gray);
+      font-family: inherit;
+      font-size: 0.84rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .status-option:hover {
+      background: var(--bg-hover);
+    }
+
+    .status-option.selected-standby {
+      border-color: var(--gold);
+      background: rgba(245, 176, 65, 0.14);
+      color: var(--gold);
+    }
+
+    .status-option.selected-live {
+      border-color: var(--accent);
+      background: rgba(255, 46, 99, 0.16);
+      color: #ff5c86;
+    }
+
+    .status-option.selected-ended {
+      border-color: #6e6e80;
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    /* FORM FIELDS */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-gray);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: var(--text-white);
+      font-family: inherit;
+      font-size: 0.88rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-control:focus {
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 92px;
+      line-height: 1.5;
+    }
+
+    /* THUMBNAIL PREVIEW */
+    .thumb-preview-wrap {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .thumb-preview {
+      width: 160px;
+      aspect-ratio: 16 / 9;
+      border-radius: 8px;
+      background: #0c0c10;
+      border: 1px solid var(--border);
+      background-size: cover;
+      background-position: center;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    /* ACTION BUTTONS */
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn {
+      padding: 11px 20px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 0.86rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+
+    .btn:hover {
+      opacity: 0.92;
+    }
+
+    .btn-save {
+      background: var(--accent);
+      color: #fff;
+      flex: 1;
+    }
+
+    .btn-sync {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-white);
+    }
+
+    /* CHAT MODERATION PANEL */
+    .chat-panel {
+      display: flex;
+      flex-direction: column;
+      height: 680px;
+    }
+
+    .chat-tools {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-mini {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text-gray);
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-mini:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .chat-stream {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-right: 4px;
+    }
+
+    .chat-stream::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .chat-stream::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.14);
+      border-radius: 99px;
+    }
+
+    .chat-item {
+      background: var(--bg-input);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.84rem;
+    }
+
+    .chat-item-body {
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    .chat-item-name {
+      font-weight: 700;
+      color: #fff;
+      margin-right: 6px;
+    }
+
+    .chat-item-name.host {
+      color: var(--gold);
+    }
+
+    .host-pill {
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.64rem;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+      margin-right: 5px;
+    }
+
+    .chat-item-text {
+      color: var(--text-gray);
+    }
+
+    .btn-del-msg {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 0.78rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .btn-del-msg:hover {
+      color: var(--accent);
+      background: rgba(255, 46, 99, 0.12);
+    }
+
+    .host-chat-form {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+    }
+
+    /* TOAST NOTIFICATION */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e1e26;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.25s ease;
+      z-index: 100;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 1120px) {
+      .stream-tabs {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .editor-grid {
+        grid-template-columns: 1fr;
+      }
+      .chat-panel {
+        height: 460px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .main-container {
+        padding: 16px;
+      }
+      .header {
+        padding: 0 16px;
+      }
+      .stream-tabs {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+      .thumb-preview-wrap {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PIN LOCK SCREEN -->
+  <div class="lock-screen" id="lock-screen">
+    <form class="lock-box" onsubmit="unlockAdmin(event)">
+      <div class="lock-logo">ZY</div>
+      <h2>ZY Stream Control</h2>
+      <p>Masukkan PIN operator untuk mengelola siaran langsung.</p>
+      <input type="password" id="pin-input" class="form-control" placeholder="Masukkan PIN..." style="text-align:center; letter-spacing: 4px; font-weight:700; margin-bottom:12px;" required />
+      <button type="submit" class="btn btn-save" style="width:100%;">Masuk Studio</button>
+      <div class="lock-error" id="lock-error">PIN salah. Silakan coba lagi.</div>
+    </form>
+  </div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-icon">ZY</div>
+      <span class="brand-title">ZY STREAM</span>
+      <span class="badge-studio">STUDIO CONTROL</span>
+    </div>
+
+    <div class="total-viewers-pill">
+      <span>Total Penonton (7 Web):</span>
+      <strong id="global-viewers">0</strong>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main-container">
+    
+    <!-- SELECTOR 7 WEBSITE -->
+    <div class="stream-tabs" id="stream-tabs"></div>
+
+    <div class="editor-grid">
+      
+      <!-- LEFT: STREAM CONFIGURATION -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2 id="editing-heading">Pengaturan Website 1 (stream_1)</h2>
+          <span style="font-size: 0.8rem; color: var(--text-gray);" id="current-tab-viewers">0 menonton</span>
+        </div>
+
+        <form id="stream-form">
+          <!-- STATUS SIARAN -->
+          <div class="form-group">
+            <label class="form-label">Status Tayangan</label>
+            <div class="status-group">
+              <button type="button" class="status-option" id="btn-status-STANDBY" onclick="setFormStatus('STANDBY')">
+                Standby / Segera Tayang
+              </button>
+              <button type="button" class="status-option" id="btn-status-LIVE" onclick="setFormStatus('LIVE')">
+                ● LIVE Sekarang
+              </button>
+              <button type="button" class="status-option" id="btn-status-ENDED" onclick="setFormStatus('ENDED')">
+                Siaran Selesai
+              </button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="inp-event">Label Acara / Sub-judul</label>
+              <input type="text" id="inp-event" class="form-control" placeholder="Contoh: ZY AWARDS 2026 LIVE" />
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label" for="inp-type">Format Video / Stream</label>
+              <select id="inp-type" class="form-control">
+                <option value="hls">HLS Live Stream (.m3u8)</option>
+                <option value="iframe">Embed Link (iframe)</option>
+                <option value="mp4">Video Langsung (.mp4)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inp-title">Judul Tayangan</label>
+            <input type="text" id="inp-title" class="form-control" placeholder="Judul utama yang tampil di bawah layar..." required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inp-url">Link Stream / Video URL</label>
+            <input type="url" id="inp-url" class="form-control" placeholder="https://... (.m3u8 / link embed / .mp4)" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inp-thumb">URL Gambar Thumbnail (Cover Sebelum Live)</label>
+            <div class="thumb-preview-wrap">
+              <div class="thumb-preview" id="thumb-preview">No Image</div>
+              <input type="url" id="inp-thumb" class="form-control" placeholder="https://... (link gambar poster 16:9)" oninput="updateThumbPreview(this.value)" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inp-desc">Deskripsi Acara</label>
+            <textarea id="inp-desc" class="form-control" placeholder="Tulis informasi acara, jadwal, atau catatan untuk penonton..."></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-save" id="btn-save">Simpan & Update Website Ini</button>
+            <button type="button" class="btn btn-sync" onclick="syncMetadataToAll()">Terapkan Info & Thumbnail ke Semua (1–7)</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- RIGHT: LIVE CHAT MODERATION -->
+      <aside class="panel chat-panel">
+        <div class="panel-header">
+          <h2>Live Chat (<span id="chat-target-label">Web 1</span>)</h2>
+          <div class="chat-tools">
+            <button type="button" class="btn-mini" onclick="clearAllChat()">Bersihkan Chat</button>
+          </div>
+        </div>
+
+        <div class="chat-stream" id="admin-chat-list">
+          <div style="margin:auto; color:var(--text-dim); font-size:0.84rem;">Belum ada pesan aktif.</div>
+        </div>
+
+        <form class="host-chat-form" onsubmit="sendHostMessage(event)">
+          <input type="text" id="host-msg-input" class="form-control" placeholder="Kirim pesan sebagai HOST..." maxlength="150" required />
+          <button type="submit" class="btn" style="background: var(--gold); color: #0c0c10; padding: 0 16px;">Kirim</button>
+        </form>
+      </aside>
+
+    </div>
+  </main>
+
+  <div class="toast" id="toast">Perubahan berhasil disimpan</div>
+
+  <script>
+    // ============================================================================
+    // PIN ADMIN (Ubah angka ini sesuai keinginanmu)
+    // ============================================================================
+    const ADMIN_PIN = "2026";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_H27U5OYilSY9QCHQhUSYlE5nXvzJNMk",
+      authDomain: "zystreams-network.firebaseapp.com",
+      databaseURL: "https://zystreams-network-default-rtdb.firebaseio.com",
+      projectId: "zystreams-network",
+      storageBucket: "zystreams-network.firebasestorage.app",
+      messagingSenderId: "940547124799",
+      appId: "1:940547124799:web:2d94b541e3bf1d2f55528a",
+      measurementId: "G-8WEY5ZB99G"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const STREAM_IDS = ["stream_1", "stream_2", "stream_3", "stream_4", "stream_5", "stream_6", "stream_7"];
+    let selectedStreamId = "stream_1";
+    let selectedStatus = "STANDBY";
+
+    const allConfigs = {};
+    const allViewers = {};
+    let currentChatRef = null;
+
+    // CEK SESI LOGIN PIN
+    if (sessionStorage.getItem("zy_admin_unlocked") === "true") {
+      document.getElementById("lock-screen").classList.add("hidden");
+    }
+
+    function unlockAdmin(e) {
+      e.preventDefault();
+      const val = document.getElementById("pin-input").value.trim();
+      if (val === ADMIN_PIN) {
+        sessionStorage.setItem("zy_admin_unlocked", "true");
+        document.getElementById("lock-screen").classList.add("hidden");
+      } else {
+        document.getElementById("lock-error").style.display = "block";
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 2600);
+    }
+
+    // RENDER TABS & PANTAU SEMUA 7 STREAM REAL-TIME
+    function initDashboard() {
+      const tabsContainer = document.getElementById("stream-tabs");
+     
