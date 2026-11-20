@@ -3,26 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ZY STREAM — Official Live Broadcast</title>
+  <title>ZY STREAM — Live Broadcast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- HLS.js untuk memutar link streaming .m3u8 secara langsung -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  
+  <!-- HLS.js untuk pemutaran live stream .m3u8 -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+  <!-- Firebase Compat SDK (Realtime Database) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
   <style>
     :root {
-      --bg-base: #07070b;
-      --bg-surface: #0f1017;
-      --bg-elevated: #171924;
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-glow: rgba(236, 72, 153, 0.4);
-      --accent-primary: #e11d48; /* Crimson Rose */
-      --accent-secondary: #9333ea; /* Royal Violet */
-      --accent-gold: #f59e0b;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --live-red: #ff2a5f;
+      --bg-app: #09090b;
+      --bg-panel: #111114;
+      --bg-elevated: #18181c;
+      --bg-hover: #222228;
+      --border: #242429;
+      --text-primary: #f4f4f6;
+      --text-secondary: #9898a3;
+      --text-muted: #63636e;
+      --brand-red: #e50914;
+      --brand-red-dim: rgba(229, 9, 20, 0.14);
+      --brand-gold: #eab308;
     }
 
     * {
@@ -31,718 +36,906 @@
       box-sizing: border-box;
     }
 
-    body {
-      background-color: var(--bg-base);
-      color: var(--text-main);
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      min-height: 100vh;
-      overflow-x: hidden;
-      background-image: 
-        radial-gradient(circle at 15% 0%, rgba(225, 29, 72, 0.14) 0%, transparent 45%),
-        radial-gradient(circle at 85% 10%, rgba(147, 51, 234, 0.14) 0%, transparent 45%);
+    html, body {
+      height: 100%;
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* TOP BROADCAST HEADER */
-    .navbar {
-      height: 68px;
-      padding: 0 28px;
+    /* HEADER / TOP BAR */
+    .topbar {
+      height: 60px;
+      background-color: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: rgba(7, 7, 11, 0.85);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border-subtle);
       position: sticky;
       top: 0;
-      z-index: 100;
+      z-index: 50;
     }
 
-    .brand {
+    .topbar-left {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 16px;
     }
 
-    .brand-logo {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 800;
-      font-size: 1.45rem;
-      letter-spacing: 1.5px;
-      background: linear-gradient(135deg, #ffffff 30%, #f43f5e 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .brand-divider {
-      width: 1px;
-      height: 20px;
-      background: var(--border-subtle);
-    }
-
-    .event-tag {
-      font-size: 0.78rem;
-      font-weight: 600;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-
-    .nav-status {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .live-pill {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255, 42, 95, 0.15);
-      border: 1px solid rgba(255, 42, 95, 0.45);
-      color: #ff5c85;
-      padding: 6px 14px;
-      border-radius: 999px;
-      font-family: 'Outfit', sans-serif;
+    .logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.3rem;
       font-weight: 700;
-      font-size: 0.78rem;
-      letter-spacing: 1px;
-    }
-
-    .live-dot {
-      width: 8px;
-      height: 8px;
-      background-color: var(--live-red);
-      border-radius: 50%;
-      box-shadow: 0 0 10px var(--live-red);
-      animation: pulseLive 1.4s infinite;
-    }
-
-    @keyframes pulseLive {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.4); opacity: 0.5; }
-    }
-
-    .viewer-badge {
+      letter-spacing: 0.06em;
+      color: #ffffff;
       display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-mark {
+      width: 10px;
+      height: 10px;
+      background-color: var(--brand-red);
+      display: inline-block;
+    }
+
+    .divider-v {
+      width: 1px;
+      height: 18px;
+      background-color: var(--border);
+    }
+
+    .channel-pill {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-badge {
+      display: inline-flex;
       align-items: center;
       gap: 6px;
+      padding: 5px 11px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
       background: var(--bg-elevated);
-      border: 1px solid var(--border-subtle);
-      padding: 6px 14px;
-      border-radius: 999px;
-      font-size: 0.82rem;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .status-badge.is-live {
+      background: var(--brand-red);
+      border-color: var(--brand-red);
+      color: #ffffff;
+    }
+
+    .status-badge.is-live .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ffffff;
+      animation: blink 1.2s infinite ease-in-out;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    .viewer-stat {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.8rem;
       font-weight: 600;
-      color: var(--text-main);
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
     }
 
-    /* MAIN BROADCAST GRID */
-    .broadcast-wrapper {
-      max-width: 1520px;
-      margin: 0 auto;
-      padding: 24px 28px 48px;
+    /* MAIN WORKSPACE LAYOUT */
+    .workspace {
       display: grid;
-      grid-template-columns: 1fr 370px;
-      gap: 24px;
+      grid-template-columns: 1fr 380px;
+      min-height: calc(100vh - 60px);
     }
 
-    /* VIDEO STAGE SECTION */
-    .stage-column {
+    /* LEFT: STAGE & DETAILS */
+    .stage-area {
+      padding: 20px 24px 40px;
       display: flex;
       flex-direction: column;
       gap: 20px;
+      min-width: 0;
     }
 
-    .player-frame {
+    .video-shell {
       position: relative;
       width: 100%;
       aspect-ratio: 16 / 9;
-      background: #000;
-      border-radius: 16px;
+      background-color: #000000;
+      border: 1px solid var(--border);
+      border-radius: 6px;
       overflow: hidden;
-      border: 1px solid var(--border-subtle);
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
     }
 
-    .player-frame video,
-    .player-frame iframe {
+    .video-shell video,
+    .video-shell iframe {
       width: 100%;
       height: 100%;
-      object-fit: cover;
       border: none;
       display: block;
+      background: #000;
     }
 
-    /* Overlay Watermark & On-Air Bug */
-    .broadcast-overlay-top {
+    /* THUMBNAIL / STANDBY OVERLAY */
+    .poster-overlay {
       position: absolute;
-      top: 18px;
-      left: 20px;
-      right: 20px;
+      inset: 0;
+      background-color: #0c0c0f;
+      background-size: cover;
+      background-position: center;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      pointer-events: none;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 32px;
       z-index: 10;
     }
 
-    .on-air-bug {
-      background: rgba(10, 10, 15, 0.72);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-family: 'Outfit', sans-serif;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 1px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .on-air-bug span {
-      color: var(--live-red);
-    }
-
-    .watermark {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 800;
-      font-size: 0.85rem;
-      letter-spacing: 2px;
-      color: rgba(255, 255, 255, 0.45);
-      text-transform: uppercase;
-    }
-
-    /* Standby Screen (Jika stream belum dimulai) */
-    .standby-screen {
+    .poster-overlay::before {
+      content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, #0d0e15 0%, #190d1a 100%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 24px;
-      z-index: 5;
+      background: linear-gradient(to top, rgba(9, 9, 11, 0.96) 0%, rgba(9, 9, 11, 0.55) 50%, rgba(9, 9, 11, 0.25) 100%);
+      z-index: 1;
     }
 
-    .standby-screen.hidden {
+    .poster-overlay.hidden {
       display: none;
     }
 
-    .standby-badge {
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: #f43f5e;
-      margin-bottom: 10px;
+    .poster-content {
+      position: relative;
+      z-index: 2;
+      max-width: 640px;
     }
 
-    .standby-title {
-      font-family: 'Outfit', sans-serif;
-      font-size: 2rem;
-      font-weight: 800;
+    .poster-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--brand-gold);
       margin-bottom: 8px;
     }
 
-    .standby-sub {
-      color: var(--text-muted);
-      font-size: 0.92rem;
-      max-width: 440px;
-    }
-
-    /* PROGRAM INFO BAR */
-    .program-header {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 16px;
-      padding: 20px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 20px;
-    }
-
-    .program-meta h1 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.45rem;
+    .poster-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.75rem;
       font-weight: 700;
-      margin-bottom: 6px;
-      letter-spacing: -0.2px;
+      line-height: 1.2;
+      margin-bottom: 8px;
+      color: #ffffff;
     }
 
-    .program-meta p {
-      color: var(--text-muted);
+    .poster-desc {
       font-size: 0.9rem;
+      color: var(--text-secondary);
       line-height: 1.5;
     }
 
-    .program-actions {
+    /* STREAM METADATA BAR */
+    .meta-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
       display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+    }
+
+    .meta-info {
+      min-width: 0;
+    }
+
+    .meta-kicker {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--brand-red);
+      margin-bottom: 6px;
+    }
+
+    .meta-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+
+    .meta-description {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      white-space: pre-line;
+    }
+
+    .meta-controls {
+      display: flex;
+      align-items: center;
       gap: 10px;
       flex-shrink: 0;
     }
 
-    .btn-action {
+    .btn {
       background: var(--bg-elevated);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-main);
-      padding: 10px 16px;
-      border-radius: 10px;
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-weight: 600;
-      font-size: 0.85rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s ease;
-    }
-
-    .btn-action:hover {
-      background: #222534;
-      border-color: rgba(255, 255, 255, 0.2);
-    }
-
-    .btn-cheer {
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-      border: none;
-      color: #fff;
-    }
-
-    .btn-cheer:hover {
-      opacity: 0.92;
-      transform: translateY(-1px);
-    }
-
-    /* MULTI-STAGE / CHANNEL SWITCHER (Untuk 7 Website / Feed) */
-    .stage-selector-box {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 16px;
-      padding: 18px 24px;
-    }
-
-    .section-label {
-      font-family: 'Outfit', sans-serif;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      height: 38px;
+      padding: 0 14px;
+      border-radius: 4px;
+      font-family: inherit;
       font-size: 0.82rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1.2px;
-      color: var(--text-muted);
-      margin-bottom: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+      border-color: #383842;
+    }
+
+    .btn-primary {
+      background: var(--brand-red);
+      border-color: var(--brand-red);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover {
+      background: #c80812;
+      border-color: #c80812;
+    }
+
+    /* RIGHT: REALTIME LIVE CHAT */
+    .chat-sidebar {
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 60px);
+      position: sticky;
+      top: 60px;
+    }
+
+    .chat-top {
+      height: 48px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0;
     }
 
-    .channel-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    .chat-top-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .chat-retention {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .chat-feed {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
       gap: 10px;
     }
 
-    .channel-card {
-      background: var(--bg-elevated);
-      border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 12px 14px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: left;
+    .chat-feed::-webkit-scrollbar {
+      width: 4px;
     }
 
-    .channel-card:hover {
-      border-color: rgba(255, 255, 255, 0.22);
-      background: #1d202e;
+    .chat-feed::-webkit-scrollbar-thumb {
+      background: #2b2b33;
+      border-radius: 2px;
     }
 
-    .channel-card.active {
-      background: linear-gradient(135deg, rgba(225, 29, 72, 0.18), rgba(147, 51, 234, 0.18));
-      border-color: var(--accent-primary);
-    }
-
-    .ch-num {
-      font-family: 'Outfit', sans-serif;
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: #f43f5e;
-      letter-spacing: 1px;
-      margin-bottom: 4px;
-    }
-
-    .ch-name {
-      font-size: 0.88rem;
-      font-weight: 600;
-      color: var(--text-main);
-    }
-
-    /* LIVE CHAT PANEL */
-    .chat-column {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-subtle);
-      border-radius: 16px;
-      display: flex;
-      flex-direction: column;
-      height: calc(100vh - 116px);
-      position: sticky;
-      top: 92px;
-      overflow: hidden;
-    }
-
-    .chat-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border-subtle);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .chat-header h2 {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-    }
-
-    .chat-notice {
-      background: rgba(245, 158, 11, 0.1);
-      border-bottom: 1px solid rgba(245, 158, 11, 0.2);
-      color: #fbbf24;
-      font-size: 0.76rem;
-      padding: 8px 16px;
+    .chat-empty {
+      margin: auto;
       text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      padding: 20px;
     }
 
-    .chat-messages {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      scroll-behavior: smooth;
-    }
-
-    .chat-messages::-webkit-scrollbar {
-      width: 5px;
-    }
-
-    .chat-messages::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 10px;
-    }
-
-    .msg-item {
-      font-size: 0.86rem;
+    .chat-row {
+      font-size: 0.84rem;
       line-height: 1.45;
-      animation: fadeInMsg 0.25s ease;
-    }
-
-    @keyframes fadeInMsg {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .msg-user {
-      font-weight: 700;
-      margin-right: 6px;
-      color: #e2e8f0;
-    }
-
-    .msg-badge {
-      display: inline-block;
-      font-size: 0.65rem;
-      font-weight: 700;
-      padding: 1px 6px;
-      border-radius: 4px;
-      margin-right: 6px;
-      background: var(--accent-primary);
-      color: #fff;
-      vertical-align: middle;
-    }
-
-    .msg-text {
-      color: #cbd5e1;
       word-break: break-word;
     }
 
-    .chat-input-area {
-      padding: 14px;
-      border-top: 1px solid var(--border-subtle);
+    .chat-author {
+      font-weight: 600;
+      color: #d4d4dc;
+      margin-right: 6px;
+    }
+
+    .chat-author.is-admin {
+      color: var(--brand-gold);
+    }
+
+    .admin-tag {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--brand-red);
+      color: #fff;
+      margin-right: 5px;
+      vertical-align: 1px;
+    }
+
+    .chat-body {
+      color: var(--text-secondary);
+    }
+
+    /* CHAT COMPOSER */
+    .chat-composer {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
       background: var(--bg-elevated);
       display: flex;
       flex-direction: column;
       gap: 8px;
+      flex-shrink: 0;
     }
 
-    .name-row {
-      display: flex;
-      gap: 8px;
-    }
-
-    .input-field {
+    .field {
       width: 100%;
-      background: var(--bg-base);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-main);
-      padding: 9px 12px;
-      border-radius: 8px;
+      height: 36px;
+      background: var(--bg-app);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0 10px;
+      color: var(--text-primary);
       font-family: inherit;
-      font-size: 0.84rem;
+      font-size: 0.82rem;
       outline: none;
+      transition: border-color 0.15s;
     }
 
-    .input-field:focus {
-      border-color: var(--accent-primary);
+    .field:focus {
+      border-color: #4f4f5c;
     }
 
-    .send-row {
+    .field::placeholder {
+      color: var(--text-muted);
+    }
+
+    .composer-row {
       display: flex;
       gap: 8px;
     }
 
-    .btn-send {
-      background: var(--accent-primary);
-      color: #fff;
+    .btn-submit {
+      height: 36px;
+      padding: 0 14px;
+      background: var(--text-primary);
+      color: var(--bg-app);
       border: none;
-      padding: 0 16px;
-      border-radius: 8px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.8rem;
       font-weight: 700;
-      font-size: 0.84rem;
       cursor: pointer;
-      transition: background 0.2s;
+      flex-shrink: 0;
     }
 
-    .btn-send:hover {
-      background: #be123c;
+    .btn-submit:hover {
+      background: #ffffff;
     }
 
-    /* FLOATING CHEER ANIMATION */
-    .floating-heart {
-      position: fixed;
-      bottom: 80px;
-      right: 420px;
-      font-size: 1.6rem;
-      pointer-events: none;
-      animation: floatUp 1.8s ease-out forwards;
-      z-index: 999;
-    }
-
-    @keyframes floatUp {
-      0% { opacity: 1; transform: translateY(0) scale(0.8); }
-      100% { opacity: 0; transform: translateY(-180px) scale(1.4); }
+    .btn-submit:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
     /* RESPONSIVE */
-    @media (max-width: 1080px) {
-      .broadcast-wrapper {
+    @media (max-width: 1024px) {
+      .workspace {
         grid-template-columns: 1fr;
       }
-      .chat-column {
-        height: 480px;
+      .chat-sidebar {
+        height: 440px;
         position: static;
-      }
-      .floating-heart {
-        right: 40px;
+        border-left: none;
+        border-top: 1px solid var(--border);
       }
     }
 
-    @media (max-width: 600px) {
-      .navbar {
-        padding: 0 16px;
+    @media (max-width: 640px) {
+      .topbar {
+        padding: 0 14px;
       }
-      .event-tag, .brand-divider {
-        display: none;
+      .stage-area {
+        padding: 14px;
       }
-      .broadcast-wrapper {
-        padding: 16px;
-      }
-      .program-header {
+      .meta-panel {
         flex-direction: column;
+        gap: 14px;
+      }
+      .poster-overlay {
+        padding: 18px;
+      }
+      .poster-title {
+        font-size: 1.25rem;
       }
     }
   </style>
 </head>
 <body>
 
-  <!-- NAVBAR -->
-  <header class="navbar">
-    <div class="brand">
-      <div class="brand-logo">ZY STREAM</div>
-      <div class="brand-divider"></div>
-      <span class="event-tag" id="nav-event-name">SCHOOL SPECIAL BROADCAST 2026</span>
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo">
+        <span class="logo-mark"></span>
+        ZY STREAM
+      </div>
+      <div class="divider-v"></div>
+      <span class="channel-pill" id="ui-channel-label">CHANNEL 01</span>
     </div>
 
-    <div class="nav-status">
-      <div class="live-pill">
-        <span class="live-dot"></span>
-        LIVE
+    <div class="topbar-right">
+      <div class="status-badge" id="ui-status-badge">
+        <span class="dot"></span>
+        <span id="ui-status-text">CONNECTING</span>
       </div>
-      <div class="viewer-badge">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-          <circle cx="12" cy="12" r="3"></circle>
+      <div class="viewer-stat" title="Penonton Aktif Saat Ini">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
         </svg>
-        <span id="viewer-count">1,248</span>
+        <span id="ui-viewer-count">0</span>
       </div>
     </div>
   </header>
 
-  <!-- MAIN CONTENT -->
-  <main class="broadcast-wrapper">
+  <!-- MAIN WORKSPACE -->
+  <div class="workspace">
     
-    <!-- LEFT: VIDEO & INFO -->
-    <section class="stage-column">
-      <div class="player-frame" id="player-container">
-        <!-- Broadcast Watermark -->
-        <div class="broadcast-overlay-top">
-          <div class="on-air-bug">
-            <span>●</span> ON AIR • <div id="bug-channel-label">MAIN STAGE</div>
+    <!-- VIDEO & PROGRAM INFO -->
+    <main class="stage-area">
+      <div class="video-shell">
+        <!-- Thumbnail / Standby Poster (Dikontrol langsung dari Firebase) -->
+        <div class="poster-overlay" id="ui-poster-overlay">
+          <div class="poster-content">
+            <div class="poster-tag" id="ui-poster-tag">STANDBY</div>
+            <h2 class="poster-title" id="ui-poster-title">Memuat Siaran...</h2>
+            <p class="poster-desc" id="ui-poster-desc">Menghubungkan ke server ZY Stream Network.</p>
           </div>
-          <div class="watermark">ZY STREAM</div>
         </div>
 
-        <!-- Standby Screen (Muncul jika streamUrl kosong) -->
-        <div class="standby-screen" id="standby-screen">
-          <div class="standby-badge">STANDBY BROADCAST</div>
-          <h2 class="standby-title">Siaran Akan Segera Dimulai</h2>
-          <p class="standby-sub">Tetap di halaman ini. Siaran langsung nobar sekolah akan otomatis tayang sesaat lagi.</p>
-        </div>
+        <!-- Video Player (HLS / MP4) -->
+        <video id="video-player" controls playsinline></video>
 
-        <!-- HTML5 Video Player (Untuk .m3u8 atau .mp4) -->
-        <video id="video-player" controls autoplay playsinline></video>
-
-        <!-- Iframe Player (Untuk embed pihak ketiga / Google Drive / dll) -->
+        <!-- Iframe Player (Embed) -->
         <iframe id="iframe-player" style="display:none;" allow="autoplay; fullscreen; encrypted-media" allowfullscreen></iframe>
       </div>
 
-      <!-- PROGRAM TITLE & CHEER -->
-      <div class="program-header">
-        <div class="program-meta">
-          <h1 id="stream-title">[LIVE] Main Stage — Nobar Spesial Sekolah</h1>
-          <p id="stream-desc">Siaran langsung eksklusif untuk lingkungan sekolah melalui ZY Stream Network. Pilih feed kamera atau server cadangan di bawah jika terjadi kendala jaringan.</p>
+      <section class="meta-panel">
+        <div class="meta-info">
+          <div class="meta-kicker" id="ui-event-kicker">ZY STREAM LIVE BROADCAST</div>
+          <h1 class="meta-title" id="ui-stream-title">Menunggu Informasi Siaran...</h1>
+          <p class="meta-description" id="ui-stream-desc">Siaran akan segera dimulai. Pastikan koneksi internet stabil.</p>
         </div>
-        <div class="program-actions">
-          <button class="btn-action" onclick="reloadStream()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+
+        <div class="meta-controls">
+          <button class="btn" onclick="reloadStream()" title="Muat Ulang Pemutar Video">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="23 4 23 10 17 10"></polyline>
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
             </svg>
-            Refresh
+            Reload Stream
           </button>
-          <button class="btn-action btn-cheer" onclick="sendCheer()">
-            🔥 Cheer (<span id="cheer-count">842</span>)
+          <button class="btn btn-primary" onclick="copyShareLink()">
+            Bagikan
           </button>
         </div>
+      </section>
+    </main>
+
+    <!-- LIVE CHAT -->
+    <aside class="chat-sidebar">
+      <div class="chat-top">
+        <span class="chat-top-title">Live Chat</span>
+        <span class="chat-retention">Auto-clear 2 menit</span>
       </div>
 
-      <!-- MULTI-SERVER / 7 FEED SWITCHER -->
-      <div class="stage-selector-box">
-        <div class="section-label">
-          <span>BROADCAST CHANNELS (7 FEEDS)</span>
-          <span style="font-size: 0.72rem; color: #f43f5e;">Klik untuk pindah channel</span>
-        </div>
-        <div class="channel-grid" id="channel-grid">
-          <!-- Diisi otomatis oleh JavaScript -->
-        </div>
-      </div>
-    </section>
-
-    <!-- RIGHT: LIVE CHAT -->
-    <aside class="chat-column">
-      <div class="chat-header">
-        <h2>LIVE CHAT</h2>
-        <span style="font-size: 0.75rem; color: var(--text-muted);">School Network</span>
-      </div>
-      <div class="chat-notice">
-        Gunakan nama asli atau kelas. Jaga ketertiban selama nobar berlangsung!
-      </div>
-      <div class="chat-messages" id="chat-messages">
-        <div class="msg-item">
-          <span class="msg-badge">HOST</span>
-          <span class="msg-user">ZY Official</span>
-          <span class="msg-text">Selamat datang di ZY Stream! Siaran nobar segera dimulai, ramaikan chat! 🎬✨</span>
-        </div>
+      <div class="chat-feed" id="ui-chat-feed">
+        <div class="chat-empty" id="ui-chat-empty">Belum ada pesan dalam 2 menit terakhir.</div>
       </div>
 
-      <form class="chat-input-area" onsubmit="handleSendMessage(event)">
-        <div class="name-row">
-          <input type="text" id="username-input" class="input-field" placeholder="Nama / Kelas (cth: Rizki - XI.2)" maxlength="25" required />
-        </div>
-        <div class="send-row">
-          <input type="text" id="chat-input" class="input-field" placeholder="Tulis komentar..." maxlength="140" required />
-          <button type="submit" class="btn-send">Kirim</button>
+      <form class="chat-composer" id="chat-form">
+        <input type="text" id="input-name" class="field" placeholder="Nama tampilan kamu" maxlength="24" required />
+        <div class="composer-row">
+          <input type="text" id="input-message" class="field" placeholder="Kirim pesan ke live chat..." maxlength="150" autocomplete="off" required />
+          <button type="submit" class="btn-submit" id="btn-send">Kirim</button>
         </div>
       </form>
     </aside>
 
-  </main>
+  </div>
 
   <script>
     /**
      * ============================================================================
-     * PENGATURAN UTAMA ZY STREAM (UBAH BAGIAN INI UNTUK TIAP WEBSITE / CHANNEL)
+     * KONFIGURASI IDENTITAS WEBSITE (UNTUK 7 WEBSITE BERBEDA)
      * ============================================================================
-     * tipe: 
-     * - "hls"    -> untuk link streaming .m3u8 (OBS / Server RTMP / Cloudflare / Mux)
-     * - "mp4"    -> untuk file video langsung .mp4
-     * - "iframe" -> untuk link embed (Vimeo, Twitch, Dailymotion, Google Drive preview, dll)
-     * - ""       -> kosongkan url jika ingin menampilkan layar STANDBY
+     * Ubah nilai SITE_ID di bawah ini untuk masing-masing dari 7 website kamu:
+     * Website 1 -> "stream_1"
+     * Website 2 -> "stream_2"
+     * Website 3 -> "stream_3"
+     * ... sampai "stream_7"
      */
-    const CHANNELS = [
-      {
-        id: 1,
-        code: "CH 01",
-        name: "Main Stage (HD)",
-        title: "[LIVE] Channel 01 — Main Stage Broadcast",
-        desc: "Siaran utama resolusi tinggi untuk nobar serentak di kelas dan aula sekolah.",
-        type: "hls",
-        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" // Ganti dengan link stream asli kamu
-      },
-      {
-        id: 2,
-        code: "CH 02",
-        name: "Backup Server A",
-        title: "[LIVE] Channel 02 — Backup Server A",
-        desc: "Server cadangan 1 apabila jaringan utama mengalami kepadatan penonton.",
-        type: "hls",
-        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
-      },
-      {
-        id: 3,
-        code: "CH 03",
-        name: "Backup Server B",
-        title: "[LIVE] Channel 03 — Backup Server B",
-        desc: "Server cadangan 2 dengan bitrate hemat kuota untuk perangkat mobile.",
-        type: "hls",
-        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
-      },
-      {
-        id: 4,
-        code: "CH 04",
-        name: "Stage Cam 2",
-        title: "[LIVE] Channel 04 — Alternate Stage Feed",
-        desc: "Sudut kamera alternatif langsung dari area panggung utama.",
-        type: "hls",
-        url: ""
-      },
-      {
-        id: 5,
-        code: "CH 05",
-        name: "Backstage Cam",
-        title: "[LIVE] Channel 05 — Backstage & Interview",
-        desc: "Liputan eksklusif di belakang panggung dan wawancara pengisi acara.",
-        type: "hls",
-        url: ""
-      },
-      {
-        id: 6,
-        code: "CH 06",
-        name: "Audience Cam",
-        title: "[LIVE] Channel 06 — 
+    const SITE_ID = "stream_1";
+
+    // Konfigurasi Firebase ZY Stream
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_H27U5OYilSY9QCHQhUSYlE5nXvzJNMk",
+      authDomain: "zystreams-network.firebaseapp.com",
+      databaseURL: "https://zystreams-network-default-rtdb.firebaseio.com",
+      projectId: "zystreams-network",
+      storageBucket: "zystreams-network.firebasestorage.app",
+      messagingSenderId: "940547124799",
+      appId: "1:940547124799:web:2d94b541e3bf1d2f55528a",
+      measurementId: "G-8WEY5ZB99G"
+    };
+
+    // Inisialisasi Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Referensi Path Realtime Database untuk SITE_ID ini
+    const streamRef = db.ref(`streams/${SITE_ID}/config`);
+    const viewersRef = db.ref(`streams/${SITE_ID}/viewers`);
+    const chatRef = db.ref(`streams/${SITE_ID}/chat`);
+
+    // Elemen DOM
+    const videoEl = document.getElementById("video-player");
+    const iframeEl = document.getElementById("iframe-player");
+    const posterOverlayEl = document.getElementById("ui-poster-overlay");
+    const statusBadgeEl = document.getElementById("ui-status-badge");
+    const statusTextEl = document.getElementById("ui-status-text");
+    const chatFeedEl = document.getElementById("ui-chat-feed");
+    const chatEmptyEl = document.getElementById("ui-chat-empty");
+
+    let currentConfig = null;
+    let hlsInstance = null;
+
+    // ============================================================================
+    // 1. REAL-TIME VIEWER PRESENCE (JUMLAH PENONTON ASLI)
+    // ============================================================================
+    const connectedRef = db.ref(".info/connected");
+    const myViewerRef = viewersRef.push();
+
+    connectedRef.on("value", (snap) => {
+      if (snap.val() === true) {
+        // Hapus otomatis dari database jika tab ditutup / koneksi terputus
+        myViewerRef.onDisconnect().remove();
+        myViewerRef.set({
+          joinedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+      }
+    });
+
+    viewersRef.on("value", (snap) => {
+      const count = snap.numChildren();
+      document.getElementById("ui-viewer-count").textContent = count.toLocaleString("id-ID");
+    });
+
+    // ============================================================================
+    // 2. SINKRONISASI STREAM, THUMBNAIL & METADATA DARI FIREBASE
+    // ============================================================================
+    streamRef.on("value", (snap) => {
+      const data = snap.val();
+
+      if (!data) {
+        // Jika node belum dibuat di Admin
+        updateStatusUI("STANDBY");
+        document.getElementById("ui-channel-label").textContent = SITE_ID.toUpperCase().replace("_", " ");
+        document.getElementById("ui-poster-tag").textContent = "STANDBY";
+        document.getElementById("ui-poster-title").textContent = "Siaran Belum Dimulai";
+        document.getElementById("ui-poster-desc").textContent = "Menunggu operator memulai siaran langsung.";
+        document.getElementById("ui-stream-title").textContent = "ZY Stream — Menunggu Siaran";
+        document.getElementById("ui-stream-desc").textContent = "Halaman ini otomatis memperbarui tayangan saat siaran dimulai.";
+        stopPlayers();
+        posterOverlayEl.classList.remove("hidden");
+        return;
+      }
+
+      const prevUrl = currentConfig ? currentConfig.streamUrl : null;
+      const prevType = currentConfig ? currentConfig.streamType : null;
+      const prevStatus = currentConfig ? currentConfig.status : null;
+      currentConfig = data;
+
+      // Update Label & Teks
+      document.getElementById("ui-channel-label").textContent = data.channelLabel || SITE_ID.toUpperCase().replace("_", " ");
+      document.getElementById("ui-event-kicker").textContent = data.eventName || "ZY STREAM BROADCAST";
+      document.getElementById("ui-stream-title").textContent = data.title || "Live Broadcast";
+      document.getElementById("ui-stream-desc").textContent = data.description || "";
+      document.title = `${data.title || "Live"} — ZY STREAM`;
+
+      // Update Thumbnail pada Poster Overlay
+      if (data.thumbnailUrl && data.thumbnailUrl.trim() !== "") {
+        posterOverlayEl.style.backgroundImage = `url('${data.thumbnailUrl}')`;
+      } else {
+        posterOverlayEl.style.backgroundImage = "none";
+      }
+
+      const status = (data.status || "STANDBY").toUpperCase();
+      updateStatusUI(status);
+
+      if (status === "LIVE" && data.streamUrl && data.streamUrl.trim() !== "") {
+        posterOverlayEl.classList.add("hidden");
+        // Muat ulang player hanya jika URL atau tipe stream berubah
+        if (prevUrl !== data.streamUrl || prevType !== data.streamType || prevStatus !== "LIVE") {
+          startPlayer(data.streamUrl.trim(), data.streamType || "hls");
+        }
+      } else {
+        stopPlayers();
+        posterOverlayEl.classList.remove("hidden");
+        document.getElementById("ui-poster-tag").textContent = status === "ENDED" ? "BROADCAST ENDED" : "UPCOMING / STANDBY";
+        document.getElementById("ui-poster-title").textContent = data.title || "Siaran Akan Segera Dimulai";
+        document.getElementById("ui-poster-desc").textContent = status === "ENDED"
+          ? "Siaran langsung telah berakhir. Terima kasih telah menyaksikan."
+          : "Tetap di halaman ini. Pemutar video akan otomatis aktif saat siaran dimulai.";
+      }
+    });
+
+    function updateStatusUI(status) {
+      statusTextEl.textContent = status;
+      if (status === "LIVE") {
+        statusBadgeEl.classList.add("is-live");
+      } else {
+        statusBadgeEl.classList.remove("is-live");
+      }
+    }
+
+    function startPlayer(url, type) {
+      stopPlayers();
+
+      if (type === "iframe") {
+        videoEl.style.display = "none";
+        iframeEl.style.display = "block";
+        iframeEl.src = url;
+      } else if (type === "hls" || url.includes(".m3u8")) {
+        iframeEl.style.display = "none";
+        videoEl.style.display = "block";
+
+        if (Hls.isSupported()) {
+          hlsInstance = new Hls({
+            lowLatencyMode: true,
+            backBufferLength: 30
+          });
+          hlsInstance.loadSource(url);
+          hlsInstance.attachMedia(videoEl);
+          hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+            videoEl.play().catch(() => {});
+          });
+        } else if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+          videoEl.src = url;
+          videoEl.play().catch(() => {});
+        }
+      } else {
+        iframeEl.style.display = "none";
+        videoEl.style.display = "block";
+        videoEl.src = url;
+        videoEl.play().catch(() => {});
+      }
+    }
+
+    function stopPlayers() {
+      if (hlsInstance) {
+        hlsInstance.destroy();
+        hlsInstance = null;
+      }
+      videoEl.pause();
+      videoEl.removeAttribute("src");
+      videoEl.load();
+      videoEl.style.display = "none";
+
+      iframeEl.src = "";
+      iframeEl.style.display = "none";
+    }
+
+    function reloadStream() {
+      if (currentConfig && currentConfig.status === "LIVE" && currentConfig.streamUrl) {
+        startPlayer(currentConfig.streamUrl.trim(), currentConfig.streamType || "hls");
+      }
+    }
+
+    function copyShareLink() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        const btn = event.currentTarget;
+        const originalText = btn.textContent;
+        btn.textContent = "Link Tersalin";
+        setTimeout(() => { btn.textContent = originalText; }, 1800);
+      });
+    }
+
+    // ============================================================================
+    // 3. LIVE CHAT REAL-TIME + AUTO-DELETE PESAN LEBIH DARI 2 MENIT
+    // ============================================================================
+    const TWO_MINUTES_MS = 2 * 60 * 1000;
+    const renderedMessageKeys = new Set();
+
+    // Muat nama tersimpan pengguna
+    const savedUsername = localStorage.getItem("zy_stream_username");
+    if (savedUsername) {
+      document.getElementById("input-name").value = savedUsername;
+    }
+
+    // Fungsi pembersih pesan lama (> 2 menit) di Firebase & DOM
+    function purgeExpiredMessages() {
+      const cutoff = Date.now() - TWO_MINUTES_MS;
+
+      // 1. Hapus dari Firebase agar database tetap ringan
+      chatRef.orderByChild("timestamp").endAt(cutoff).once("value", (snap) => {
+        if (!snap.exists()) return;
+        const updates = {};
+        snap.forEach((child) => {
+          updates[child.key] = null;
+        });
+        chatRef.update(updates).catch(() => {});
+      });
+
+      // 2. Hapus elemen DOM yang sudah melewati 2 menit
+      const rows = chatFeedEl.querySelectorAll(".chat-row");
+      rows.forEach((row) => {
+        const ts = Number(row.dataset.ts || 0);
+        if (ts > 0 && ts < cutoff) {
+          renderedMessageKeys.delete(row.dataset.key);
+          row.remove();
+        }
+      });
+
+      toggleEmptyState();
+    }
+
+    // Jalankan pembersihan setiap 10 detik
+    setInterval(purgeExpiredMessages, 10000);
+
+    // Dengarkan pesan baru secara real-time
+    chatRef.limitToLast(60).on("child_added", (snap) => {
+      const msg = snap.val();
+      const key = snap.key;
+      if (!msg || renderedMessageKeys.has(key)) return;
+
+      const msgTime = typeof msg.timestamp === "number" ? msg.timestamp : Date.now();
+      const cutoff = Date.now() - TWO_MINUTES_MS;
+
+      // Jika pesan sudah kadaluarsa (> 2 menit), langsung hapus dari Firebase & abaikan
+      if (msgTime < cutoff) {
+        chatRef.child(key).remove().catch(() => {});
+        return;
+      }
+
+      renderedMessageKeys.add(key);
+
+      const row = document.createElement("div");
+      row.className = "chat-row";
+      row.dataset.key = key;
+      row.dataset.ts = msgTime;
+
+      if (msg.isAdmin) {
+        const badge = document.createElement("span");
+        badge.className = "admin-tag";
+        badge.textContent = "ADMIN";
+        row.appendChild(badge);
+      }
+
+      const authorEl = document.createElement("span");
+      authorEl.className = `chat-author ${msg.isAdmin ? "is-admin" : ""}`;
+      authorEl.textContent = msg.name || "Penonton";
+
+      const textEl = document.createElement("span");
+      textEl.className = "chat-body";
+      textEl.textContent = msg.text || "";
+
+      row.appendChild(authorEl);
+      row.appendChild(textEl);
+
+      chatFeedEl.appendChild(row);
+      toggleEmptyState();
+      chatFeedEl.scrollTop = chatFeedEl.scrollHeight;
+    });
+
+    // Hapus dari layar jika pesan dihapus di Firebase (oleh admin atau auto-purge)
+    chatRef.on("child_removed", (snap) => {
+      const key = snap.key;
+      renderedMessageKeys.delete(key);
+      const el = chatFeedEl.querySelector(`[data-key="${key}"]`);
+      if (el) el.remove();
+      toggleEmptyState();
+    });
+
+    function toggleEmptyState() {
+      const hasMessages = chatFeedEl.querySelectorAll(".chat-row").length > 0;
+      chatEmptyEl.style.display = hasMessages ? "none" : "block";
+    }
+
+    // Kirim pesan chat baru
+    document.getElementById("chat-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const nameInput = document.getElementById("input-name");
+      const msgInput = document.getElementById("input-message");
+      const sendBtn = document.getElementById("btn-send");
+
+      const name = nameInput.value.trim();
+      const text = msgInput.value.trim();
+      if (!name || !text) return;
+
+      localStorage.setItem("zy_stream_username", name);
+      sendBtn.disabled = true;
+
+      chatRef.push({
+        name: name,
+        text: text,
+        isAdmin: false,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      }).then(() => {
+        msgInput.value = "";
+        sendBtn.disabled = false;
+        msgInput.focus();
+      }).catch(() => {
+        sendBtn.disabled = false;
+      });
+    });
+  </script>
+</body>
+</html>
+
