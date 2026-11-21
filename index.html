@@ -185,7 +185,6 @@
       z-index: 2;
     }
 
-    /* Zoom tipis khusus untuk YouTube/Twitch agar watermark & judul platform terpotong */
     .video-box iframe.cropped-embed {
       top: -6%;
       left: -2%;
@@ -197,10 +196,10 @@
     .subtitle-overlay {
       position: absolute;
       left: 50%;
-      bottom: 62px;
+      bottom: 64px;
       transform: translateX(-50%);
-      width: 86%;
-      max-width: 780px;
+      width: 88%;
+      max-width: 800px;
       text-align: center;
       z-index: 8;
       pointer-events: none;
@@ -213,22 +212,22 @@
 
     .subtitle-box {
       display: inline-block;
-      background: rgba(10, 10, 14, 0.84);
-      backdrop-filter: blur(6px);
+      background: rgba(10, 10, 14, 0.88);
+      backdrop-filter: blur(8px);
       color: #ffffff;
       font-size: 1.05rem;
       font-weight: 600;
       line-height: 1.45;
-      padding: 8px 18px;
+      padding: 9px 18px;
       border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.14);
       text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
     }
 
     .subtitle-lang-tag {
       display: block;
-      font-size: 0.65rem;
+      font-size: 0.64rem;
       font-weight: 800;
       letter-spacing: 0.8px;
       color: var(--gold);
@@ -873,10 +872,8 @@
             </div>
 
             <div class="ctrl-group">
-              <!-- TOMBOL AUTO-SUBTITLE BAHASA INDONESIA -->
               <button type="button" class="ctrl-btn" id="btn-cc" onclick="toggleIndonesianSubtitle()">💬 CC Indonesia: OFF</button>
 
-              <!-- PEMILIH KUALITAS DINAMIS -->
               <div class="quality-wrapper">
                 <div class="quality-menu" id="quality-menu">
                   <div class="quality-header">Kualitas Video</div>
@@ -890,7 +887,7 @@
           </div>
         </div>
 
-        <video id="video-player" muted playsinline style="display:none;" oncontextmenu="return false;"></video>
+        <video id="video-player" muted playsinline crossorigin="anonymous" style="display:none;" oncontextmenu="return false;"></video>
         <iframe id="iframe-player" style="display:none;" referrerpolicy="no-referrer" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
       </div>
 
@@ -993,9 +990,7 @@
     let selectedQualityValue = "auto";
     let serverTimeOffset = 0;
 
-    // State Subtitle Otomatis Bahasa Indonesia
     let ccEnabled = false;
-    let speechRecognizer = null;
     let lastTranslatedSource = "";
     let subClearTimer = null;
 
@@ -1062,7 +1057,25 @@
       document.getElementById("viewer-count").textContent = snap.numChildren().toLocaleString("id-ID");
     });
 
-    // 3. FITUR AUTO-SUBTITLE BAHASA INDONESIA
+    // 3. HELPER YOUTUBE & SUBTITLE INDONESIA (ANDROID / IOS / PC)
+    function sendYouTubeCommand(func, args = []) {
+      if (!iframeEl || !iframeEl.contentWindow) return;
+      iframeEl.contentWindow.postMessage(JSON.stringify({
+        event: "command",
+        func: func,
+        args: args
+      }), "*");
+    }
+
+    function forceYouTubeIndonesianCaptions() {
+      if (!currentMediaInfo || currentMediaInfo.platform !== "youtube") return;
+      sendYouTubeCommand("loadModule", ["captions"]);
+      setTimeout(() => {
+        sendYouTubeCommand("setOption", ["captions", "track", { languageCode: "id" }]);
+        sendYouTubeCommand("setOption", ["captions", "reload", true]);
+      }, 600);
+    }
+
     async function translateToIndonesian(text) {
       const clean = text.trim();
       if (!clean || clean === lastTranslatedSource) return;
@@ -1074,23 +1087,25 @@
         const data = await res.json();
         if (data && data[0]) {
           const translated = data[0].map((part) => part[0]).join("");
-          renderSubtitleLine(translated, "AUTO-TRANSLATE • INDONESIA");
+          renderSubtitleLine(translated, "SUBTITLE OTOMATIS • INDONESIA");
         }
       } catch (e) {
         renderSubtitleLine(clean, "TRANSKRIP LANGSUNG");
       }
     }
 
-    function renderSubtitleLine(text, sourceLabel) {
+    function renderSubtitleLine(text, sourceLabel, persist = false) {
       if (!ccEnabled || !text) return;
       subTagEl.textContent = sourceLabel || "SUBTITLE • BAHASA INDONESIA";
       subTextEl.textContent = text;
       subOverlayEl.classList.add("active");
 
       clearTimeout(subClearTimer);
-      subClearTimer = setTimeout(() => {
-        subOverlayEl.classList.remove("active");
-      }, 6500);
+      if (!persist) {
+        subClearTimer = setTimeout(() => {
+          subOverlayEl.classList.remove("active");
+        }, 7000);
+      }
     }
 
     function bindVideoNativeTextTracks() {
@@ -1109,72 +1124,35 @@
       }
     }
 
-    function startLiveSpeechSubtitle() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) return;
-
-      stopLiveSpeechSubtitle();
-      speechRecognizer = new SpeechRecognition();
-      speechRecognizer.continuous = true;
-      speechRecognizer.interimResults = true;
-      speechRecognizer.lang = (currentData && currentData.sourceLang) ? currentData.sourceLang : "ko-KR";
-
-      speechRecognizer.onresult = (event) => {
-        if (!ccEnabled) return;
-        let transcript = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
-        }
-        if (transcript.trim().length > 2) {
-          translateToIndonesian(transcript);
-        }
-      };
-
-      speechRecognizer.onerror = () => {};
-      speechRecognizer.onend = () => {
-        if (ccEnabled && speechRecognizer) {
-          try { speechRecognizer.start(); } catch (e) {}
-        }
-      };
-
-      try { speechRecognizer.start(); } catch (e) {}
-    }
-
-    function stopLiveSpeechSubtitle() {
-      if (speechRecognizer) {
-        try { speechRecognizer.onend = null; speechRecognizer.stop(); } catch (e) {}
-        speechRecognizer = null;
-      }
-    }
-
     function toggleIndonesianSubtitle() {
       ccEnabled = !ccEnabled;
       ccBtn.classList.toggle("cc-active", ccEnabled);
       ccBtn.textContent = ccEnabled ? "💬 CC Indonesia: ON" : "💬 CC Indonesia: OFF";
 
       if (ccEnabled) {
-        // Jika YouTube iframe aktif, nyalakan juga cc_load_policy=1&hl=id
         if (currentMediaInfo && currentMediaInfo.platform === "youtube") {
           iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, selectedQualityValue, true);
+          setTimeout(forceYouTubeIndonesianCaptions, 1200);
+          renderSubtitleLine("Subtitle otomatis Bahasa Indonesia aktif.", "YOUTUBE CC • INDONESIA");
+          return;
         }
-        // Cek apakah ada live caption dari Admin di Firebase
+
         if (currentData && currentData.liveCaption) {
-          renderSubtitleLine(currentData.liveCaption, "HOST SUBTITLE • INDONESIA");
+          renderSubtitleLine(currentData.liveCaption, "SUBTITLE LIVE • INDONESIA");
         } else {
-          renderSubtitleLine("Subtitle otomatis Bahasa Indonesia aktif...", "ZY STREAM CC");
+          renderSubtitleLine("Subtitle Bahasa Indonesia aktif. Menunggu dialog berikutnya...", "ZY STREAM CC • INDONESIA");
         }
         bindVideoNativeTextTracks();
-        startLiveSpeechSubtitle();
       } else {
         subOverlayEl.classList.remove("active");
-        stopLiveSpeechSubtitle();
         if (currentMediaInfo && currentMediaInfo.platform === "youtube") {
+          sendYouTubeCommand("unloadModule", ["captions"]);
           iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, selectedQualityValue, false);
         }
       }
     }
 
-    // 4. MENU KUALITAS VIDEO DINAMIS (Bekerja untuk HLS, YouTube, Twitch)
+    // 4. MENU KUALITAS VIDEO DINAMIS (HLS RTMP, YouTube, Twitch)
     function toggleQualityMenu(e) {
       e.stopPropagation();
       const isOpen = qualityMenuEl.classList.toggle("open");
@@ -1207,14 +1185,12 @@
       qualityMenuEl.classList.remove("open");
       shieldEl.classList.remove("menu-open");
 
-      // Refresh highlight aktif di menu
       qualityListEl.querySelectorAll(".quality-item").forEach((el) => {
         el.classList.toggle("active", el.textContent.includes(label));
       });
 
       if (!currentMediaInfo) return;
 
-      // A. HLS (.m3u8) -> Langsung ganti level bitrate di Hls.js!
       if (hls && hls.levels && hls.levels.length > 0) {
         if (val === "auto") {
           hls.currentLevel = -1;
@@ -1228,7 +1204,6 @@
         return;
       }
 
-      // B. YouTube -> Kirim perintah API + reload dengan vq agar langsung turun/naik resolusi
       if (currentMediaInfo.platform === "youtube") {
         sendYouTubeCommand("setPlaybackQualityRange", [val === "auto" ? "small" : val, val === "auto" ? "highres" : val]);
         sendYouTubeCommand("setPlaybackQuality", [val === "auto" ? "default" : val]);
@@ -1237,7 +1212,6 @@
         return;
       }
 
-      // C. Twitch -> Reload parameter kualitas
       if (currentMediaInfo.platform === "twitch_chan" || currentMediaInfo.platform === "twitch_vod") {
         iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, val, ccEnabled);
         showNotice(`Kualitas Twitch: ${label}`, 1800);
@@ -1254,16 +1228,6 @@
         { value: "large", label: "480p" },
         { value: "medium", label: "360p" }
       ]);
-    }
-
-    // 5. HELPER YOUTUBE & URL BUILDER
-    function sendYouTubeCommand(func, args = []) {
-      if (!iframeEl || !iframeEl.contentWindow) return;
-      iframeEl.contentWindow.postMessage(JSON.stringify({
-        event: "command",
-        func: func,
-        args: args
-      }), "*");
     }
 
     function buildIframeUrl(media, muted, qCode = "auto", ccOn = false) {
@@ -1290,49 +1254,42 @@
       return media.rawUrl;
     }
 
-    // 6. UNIVERSAL LINK RESOLVER (Mendukung semua format .m3u8 berparameter & halaman web)
+    // 5. UNIVERSAL LINK RESOLVER
     function resolveMediaSource(rawUrl, forcedType) {
       const url = rawUrl.trim();
 
-      // A. YouTube
       const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
       if (ytMatch && ytMatch[1]) {
         return { mode: "iframe", platform: "youtube", cropped: true, videoId: ytMatch[1], rawUrl: url };
       }
 
-      // B. Twitch Video VOD
       const twitchVod = url.match(/twitch\.tv\/videos\/(\d+)/);
       if (twitchVod && twitchVod[1]) {
         return { mode: "iframe", platform: "twitch_vod", cropped: true, videoId: twitchVod[1], rawUrl: url };
       }
 
-      // C. Twitch Channel Live
       const twitchChan = url.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)(?:\/)?(?:\?.*)?$/);
       if (twitchChan && twitchChan[1] && twitchChan[1].toLowerCase() !== "directory") {
         return { mode: "iframe", platform: "twitch_chan", cropped: true, channel: twitchChan[1], rawUrl: url };
       }
 
-      // D. Google Drive Video
       const gdriveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
       if (gdriveMatch && gdriveMatch[1]) {
         return { mode: "iframe", platform: "gdrive", cropped: false, rawUrl: `https://drive.google.com/file/d/${gdriveMatch[1]}/preview` };
       }
 
-      // E. HLS (.m3u8 — termasuk URL dengan query string seperti index.m3u8?p atau /hls/.../index.m3u8)
       if (forcedType === "hls" || /\.m3u8(\?|\/|$)/i.test(url)) {
         return { mode: "hls", src: url };
       }
 
-      // F. Video Langsung (.mp4 / .webm)
       if (forcedType === "mp4" || /\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
         return { mode: "mp4", src: url };
       }
 
-      // G. Halaman Web / Embed Player Eksternal (seperti fanversecast.com)
       return { mode: "iframe", platform: "web_embed", cropped: false, rawUrl: url };
     }
 
-    // 7. KONTROL SUARA & SINKRONISASI DETIK
+    // 6. KONTROL SUARA & SINKRONISASI DETIK
     function activateAudioAndPlay() {
       isMuted = false;
       unmuteBannerEl.classList.add("hidden");
@@ -1400,7 +1357,7 @@
       }
     }
 
-    // 8. REAL-TIME DATA SIARAN & THUMBNAIL
+    // 7. REAL-TIME DATA SIARAN & THUMBNAIL
     streamRef.on("value", (snap) => {
       const data = snap.val();
 
@@ -1428,7 +1385,6 @@
       document.getElementById("stream-desc").textContent = data.description || "Selamat menyaksikan siaran langsung.";
       document.title = `${data.title || "Live"} — ZY STREAM`;
 
-      // Tampilkan subtitle/terjemahan live dari Admin jika ada perubahan
       if (data.liveCaption && data.liveCaption !== prevCaption) {
         if (!ccEnabled) {
           ccEnabled = true;
@@ -1478,7 +1434,7 @@
       }
     }
 
-    // 9. PEMUTAR STREAM ANTI-BLACKSCREEN (HLS + Fallback + Iframe)
+    // 8. PEMUTAR STREAM ANTI-BLACKSCREEN (HLS RTMP + Fallback + Iframe)
     function playStream(rawUrl, type) {
       stopStream();
       setDefaultQualityOptions();
@@ -1501,22 +1457,26 @@
           showNotice("");
           if (media.platform === "youtube") {
             sendYouTubeCommand("playVideo");
+            if (ccEnabled) forceYouTubeIndonesianCaptions();
           }
         };
       } else if (media.mode === "hls") {
         iframeEl.style.display = "none";
         videoEl.style.display = "block";
         videoEl.muted = true;
-        showNotice("Menghubungkan aliran HLS (.m3u8)...");
+        showNotice("Menghubungkan aliran siaran...");
 
         if (Hls.isSupported()) {
           hls = new Hls({
             enableWorker: true,
             lowLatencyMode: true,
+            enableCEA708Captions: true,
+            enableWebVTT: true,
             backBufferLength: 60,
             maxBufferLength: 30,
-            fragLoadingMaxRetry: 5,
-            manifestLoadingMaxRetry: 4,
+            fragLoadingMaxRetry: 8,
+            manifestLoadingMaxRetry: 8,
+            manifestLoadingRetryDelay: 2000,
             xhrSetup: function (xhr) {
               xhr.withCredentials = false;
             }
@@ -1527,10 +1487,8 @@
 
           hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
             showNotice("");
-            // Bangun menu kualitas secara dinamis dari manifest .m3u8 yang asli!
             if (data.levels && data.levels.length > 0) {
               const dynamicOpts = [{ value: "auto", label: "Otomatis" }];
-              // Urutkan dari resolusi tertinggi ke terendah
               const sorted = data.levels
                 .map((lvl, idx) => ({
                   value: String(idx),
@@ -1556,22 +1514,19 @@
           });
 
           hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
+            if (hls.subtitleTracks && hls.subtitleTracks.length > 0) {
+              hls.subtitleTrack = 0;
+            }
             bindVideoNativeTextTracks();
           });
 
-          // Penanganan error & fallback otomatis jika CDN memblokir XHR CORS
           hls.on(Hls.Events.ERROR, (event, data) => {
             if (data.fatal) {
               if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                // Coba fallback ke native <video> (sering lolos pembatasan CORS XHR!)
-                hls.destroy();
-                hls = null;
-                videoEl.src = media.src;
-                videoEl.play().then(() => {
-                  showNotice("");
-                }).catch(() => {
-                  showNotice("Link .m3u8 kadaluarsa atau diblokir oleh server sumbernya.");
-                });
+                showNotice("Menunggu sinyal RTMP masuk dari OBS...");
+                setTimeout(() => {
+                  if (hls) hls.loadSource(media.src);
+                }, 3000);
               } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
                 hls.recoverMediaError();
               }
@@ -1581,10 +1536,6 @@
           videoEl.src = media.src;
           videoEl.onloadedmetadata = () => {
             showNotice("");
-            const targetSec = getTargetElapsedSeconds();
-            if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
-              videoEl.currentTime = targetSec;
-            }
             videoEl.play().catch(() => {});
           };
         }
@@ -1630,7 +1581,7 @@
       });
     }
 
-    // 10. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
+    // 9. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
     const EXPIRE_MS = 2 * 60 * 1000;
     const shownKeys = new Set();
     const avatarColors = ["#e11d48", "#7c3aed", "#2563eb", "#059669", "#d97706", "#db2777"];
