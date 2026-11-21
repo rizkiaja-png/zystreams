@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>ZY STREAM — Live</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -168,9 +169,9 @@
       display: block;
       object-fit: contain;
       background: #000;
+      pointer-events: none;
     }
 
-    /* Zoom tipis pada iframe untuk menyembunyikan bar judul & logo YouTube/Twitch */
     .video-box iframe {
       position: absolute;
       top: -6%;
@@ -180,11 +181,11 @@
       border: none;
       display: block;
       background: #000;
-      pointer-events: none; /* Mencegah klik langsung ke dalam iframe */
+      pointer-events: none;
     }
 
-    /* SHIELD OVERLAY: Memblokir klik pada frame & menampilkan kontrol kustom */
-    .iframe-shield {
+    /* SHIELD OVERLAY & CUSTOM CONTROLS */
+    .player-shield {
       position: absolute;
       inset: 0;
       z-index: 6;
@@ -194,7 +195,7 @@
       background: transparent;
     }
 
-    .iframe-shield.hidden {
+    .player-shield.hidden {
       display: none;
     }
 
@@ -208,32 +209,66 @@
       transition: opacity 0.25s ease;
     }
 
+    .shield-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .unmute-banner {
+      pointer-events: auto;
+      background: rgba(255, 46, 99, 0.95);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 12px 22px;
+      border-radius: 99px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      animation: bounceSoft 2s infinite;
+    }
+
+    .unmute-banner.hidden {
+      display: none;
+    }
+
+    @keyframes bounceSoft {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+    }
+
     .shield-bottom {
       padding: 14px 20px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+      background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
       opacity: 0;
       transition: opacity 0.25s ease;
     }
 
     .video-box:hover .shield-top,
     .video-box:hover .shield-bottom,
-    .iframe-shield.paused .shield-top,
-    .iframe-shield.paused .shield-bottom {
+    .player-shield.menu-open .shield-bottom {
       opacity: 1;
     }
 
     .ctrl-group {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      position: relative;
     }
 
     .ctrl-btn {
-      background: rgba(20, 20, 26, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(20, 20, 26, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       color: #fff;
       padding: 7px 13px;
       border-radius: 8px;
@@ -251,6 +286,88 @@
     .ctrl-btn:hover {
       background: rgba(255, 46, 99, 0.85);
       border-color: transparent;
+    }
+
+    .sync-clock {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #e4e4ec;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* QUALITY DROPDOWN POPUP */
+    .quality-wrapper {
+      position: relative;
+    }
+
+    .quality-menu {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      right: 0;
+      min-width: 155px;
+      background: rgba(18, 18, 24, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 12px;
+      padding: 6px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(14px);
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      z-index: 20;
+    }
+
+    .quality-menu.open {
+      display: flex;
+    }
+
+    .quality-header {
+      font-size: 0.68rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      padding: 6px 10px 4px;
+    }
+
+    .quality-item {
+      background: transparent;
+      border: none;
+      color: var(--text-gray);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .quality-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    .quality-item.active {
+      background: rgba(255, 46, 99, 0.18);
+      color: #fff;
+    }
+
+    .quality-badge {
+      font-size: 0.64rem;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: var(--accent);
+      color: #fff;
     }
 
     .broadcast-tag {
@@ -649,22 +766,55 @@
           </div>
         </div>
 
-        <!-- Pelindung Klik Iframe & Kontrol ZY Stream -->
-        <div class="iframe-shield hidden" id="iframe-shield" oncontextmenu="return false;">
+        <!-- Pelindung Klik & Kontrol Sinkronisasi ZY Stream -->
+        <div class="player-shield hidden" id="player-shield" oncontextmenu="return false;">
           <div class="shield-top">
             <span class="broadcast-tag">ZY STREAM BROADCAST</span>
+            <span class="sync-clock" id="sync-clock">00:00</span>
           </div>
+
+          <div class="shield-center">
+            <button type="button" class="unmute-banner" id="unmute-banner" onclick="activateAudioAndPlay()">
+              🔊 Ketuk untuk Nyalakan Suara
+            </button>
+          </div>
+
           <div class="shield-bottom">
             <div class="ctrl-group">
-              <button type="button" class="ctrl-btn" id="btn-yt-mute" onclick="toggleYoutubeMute()">🔊 Suara</button>
-              <button type="button" class="ctrl-btn" onclick="refreshPlayer()">↻ Sinkron Live</button>
+              <button type="button" class="ctrl-btn" id="btn-sound-toggle" onclick="toggleSound()">🔇 Suara Mati</button>
+              <button type="button" class="ctrl-btn" onclick="syncToLiveNow()">↻ Sinkron Detik</button>
             </div>
-            <button type="button" class="ctrl-btn" onclick="toggleFullscreen()">⛶ Layar Penuh</button>
+
+            <div class="ctrl-group">
+              <div class="quality-wrapper">
+                <div class="quality-menu" id="quality-menu">
+                  <div class="quality-header">Kualitas Video</div>
+                  <button type="button" class="quality-item active" data-q="hd1080" onclick="selectQuality('hd1080', '1080p')">
+                    <span>1080p</span><span class="quality-badge">FHD</span>
+                  </button>
+                  <button type="button" class="quality-item" data-q="hd720" onclick="selectQuality('hd720', '720p')">
+                    <span>720p</span><span class="quality-badge">HD</span>
+                  </button>
+                  <button type="button" class="quality-item" data-q="large" onclick="selectQuality('large', '480p')">
+                    <span>480p</span>
+                  </button>
+                  <button type="button" class="quality-item" data-q="medium" onclick="selectQuality('medium', '360p')">
+                    <span>360p (Hemat)</span>
+                  </button>
+                  <button type="button" class="quality-item" data-q="auto" onclick="selectQuality('auto', 'Auto')">
+                    <span>Otomatis</span>
+                  </button>
+                </div>
+                <button type="button" class="ctrl-btn" id="btn-quality" onclick="toggleQualityMenu(event)">⚙ 1080p</button>
+              </div>
+
+              <button type="button" class="ctrl-btn" onclick="toggleFullscreen()">⛶ Layar Penuh</button>
+            </div>
           </div>
         </div>
 
-        <video id="video-player" controls controlsList="nodownload" oncontextmenu="return false;" playsinline></video>
-        <iframe id="iframe-player" style="display:none;" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        <video id="video-player" oncontextmenu="return false;" playsinline></video>
+        <iframe id="iframe-player" style="display:none;" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
       </div>
 
       <div class="show-details">
@@ -675,12 +825,12 @@
         </div>
 
         <div class="show-actions">
-          <button class="action-btn" onclick="refreshPlayer()">
+          <button class="action-btn" onclick="syncToLiveNow()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <polyline points="23 4 23 10 17 10"></polyline>
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
             </svg>
-            Segarkan
+            Sinkronkan
           </button>
           <button class="action-btn share" onclick="sharePage(this)">
             Bagikan
@@ -741,7 +891,12 @@
     const videoBoxEl = document.getElementById("video-box");
     const videoEl = document.getElementById("video-player");
     const iframeEl = document.getElementById("iframe-player");
-    const shieldEl = document.getElementById("iframe-shield");
+    const shieldEl = document.getElementById("player-shield");
+    const syncClockEl = document.getElementById("sync-clock");
+    const unmuteBannerEl = document.getElementById("unmute-banner");
+    const soundToggleBtn = document.getElementById("btn-sound-toggle");
+    const qualityMenuEl = document.getElementById("quality-menu");
+    const qualityBtnEl = document.getElementById("btn-quality");
     const coverEl = document.getElementById("thumbnail-cover");
     const liveBadgeEl = document.getElementById("live-badge");
     const liveTextEl = document.getElementById("live-text");
@@ -750,9 +905,52 @@
 
     let currentData = null;
     let hls = null;
-    let isMuted = false;
+    let currentMediaInfo = null;
+    let isMuted = true;
+    let selectedQualityCode = "hd1080";
+    let serverTimeOffset = 0;
 
-    // 1. REAL-TIME JUMLAH PENONTON AKTIF
+    // 1. KALIBRASI JAM SERVER FIREBASE (Agar detik akurat di semua HP/PC)
+    db.ref(".info/serverTimeOffset").on("value", (snap) => {
+      serverTimeOffset = snap.val() || 0;
+    });
+
+    function getServerNow() {
+      return Date.now() + serverTimeOffset;
+    }
+
+    function getTargetElapsedSeconds() {
+      if (!currentData || !currentData.startedAt) return 0;
+      const diffMs = getServerNow() - Number(currentData.startedAt);
+      return Math.max(0, Math.floor(diffMs / 1000));
+    }
+
+    function formatTime(sec) {
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      const pad = (n) => String(n).padStart(2, "0");
+      return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+    }
+
+    // Timer tampilan durasi tayang + penjaga sinkronisasi video MP4/HLS
+    setInterval(() => {
+      if (!currentData || currentData.status !== "LIVE") return;
+      const targetSec = getTargetElapsedSeconds();
+      syncClockEl.textContent = formatTime(targetSec);
+
+      // Koreksi otomatis jika video HTML5 (MP4/HLS) tertinggal > 2.5 detik akibat buffering
+      if (currentMediaInfo && (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls")) {
+        if (!videoEl.paused && videoEl.readyState >= 2 && isFinite(videoEl.duration)) {
+          const clampedTarget = Math.min(targetSec, Math.max(0, videoEl.duration - 1));
+          if (Math.abs(videoEl.currentTime - clampedTarget) > 2.5) {
+            videoEl.currentTime = clampedTarget;
+          }
+        }
+      }
+    }, 1000);
+
+    // 2. REAL-TIME JUMLAH PENONTON AKTIF
     const myPresenceRef = viewersRef.push();
     db.ref(".info/connected").on("value", (snap) => {
       if (snap.val() === true) {
@@ -765,81 +963,150 @@
       document.getElementById("viewer-count").textContent = snap.numChildren().toLocaleString("id-ID");
     });
 
-    // 2. UNIVERSAL LINK RESOLVER (YouTube, Twitch, Google Drive, HLS, MP4, Iframe)
+    // 3. MENU PENGATURAN KUALITAS VIDEO
+    function toggleQualityMenu(e) {
+      e.stopPropagation();
+      const isOpen = qualityMenuEl.classList.toggle("open");
+      shieldEl.classList.toggle("menu-open", isOpen);
+    }
+
+    document.addEventListener("click", () => {
+      qualityMenuEl.classList.remove("open");
+      shieldEl.classList.remove("menu-open");
+    });
+
+    function selectQuality(qCode, label) {
+      selectedQualityCode = qCode;
+      qualityBtnEl.textContent = `⚙ ${label}`;
+
+      document.querySelectorAll(".quality-item").forEach((item) => {
+        item.classList.toggle("active", item.dataset.q === qCode);
+      });
+
+      qualityMenuEl.classList.remove("open");
+      shieldEl.classList.remove("menu-open");
+
+      // Terapkan kualitas baru sekaligus tetap sinkron ke detik server saat ini
+      if (currentMediaInfo && currentMediaInfo.mode === "iframe") {
+        iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, qCode);
+      } else if (hls && hls.levels && hls.levels.length > 0) {
+        if (qCode === "auto") {
+          hls.currentLevel = -1;
+        } else {
+          const targetHeight = qCode === "hd1080" ? 1080 : qCode === "hd720" ? 720 : qCode === "large" ? 480 : 360;
+          let bestIdx = 0;
+          hls.levels.forEach((lvl, idx) => {
+            if (lvl.height <= targetHeight) bestIdx = idx;
+          });
+          hls.currentLevel = bestIdx;
+        }
+      }
+    }
+
+    function buildIframeUrl(media, muted, qCode) {
+      const host = window.location.hostname || "localhost";
+      const elapsedSec = getTargetElapsedSeconds();
+
+      if (media.platform === "youtube") {
+        const vqParam = qCode !== "auto" ? `&vq=${qCode}` : "";
+        const startParam = elapsedSec > 0 ? `&start=${elapsedSec}` : "";
+        return `https://www.youtube.com/embed/${media.videoId}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&disablekb=1&rel=0&playsinline=1${startParam}${vqParam}`;
+      }
+      if (media.platform === "twitch_vod") {
+        const h = Math.floor(elapsedSec / 3600);
+        const m = Math.floor((elapsedSec % 3600) / 60);
+        const s = elapsedSec % 60;
+        return `https://player.twitch.tv/?video=${media.videoId}&parent=${host}&autoplay=true&muted=${muted}&controls=false&time=${h}h${m}m${s}s`;
+      }
+      if (media.platform === "twitch_chan") {
+        return `https://player.twitch.tv/?channel=${media.channel}&parent=${host}&autoplay=true&muted=${muted}&controls=false`;
+      }
+      return media.rawUrl;
+    }
+
+    // 4. UNIVERSAL LINK RESOLVER
     function resolveMediaSource(rawUrl, forcedType) {
       const url = rawUrl.trim();
-      const host = window.location.hostname || "localhost";
 
-      // A. Deteksi YouTube (kontrol bawaan disembunyikan & JS API aktif)
       const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
       if (ytMatch && ytMatch[1]) {
-        return {
-          mode: "iframe",
-          platform: "youtube",
-          src: `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&controls=0&disablekb=1&fs=0&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1&enablejsapi=1`
-        };
+        return { mode: "iframe", platform: "youtube", videoId: ytMatch[1], rawUrl: url };
       }
 
-      // B. Deteksi Twitch Video VOD
       const twitchVod = url.match(/twitch\.tv\/videos\/(\d+)/);
       if (twitchVod && twitchVod[1]) {
-        return {
-          mode: "iframe",
-          platform: "twitch",
-          src: `https://player.twitch.tv/?video=${twitchVod[1]}&parent=${host}&autoplay=true&controls=false`
-        };
+        return { mode: "iframe", platform: "twitch_vod", videoId: twitchVod[1], rawUrl: url };
       }
 
-      // C. Deteksi Twitch Channel Live
       const twitchChan = url.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)(?:\/)?(?:\?.*)?$/);
       if (twitchChan && twitchChan[1] && twitchChan[1].toLowerCase() !== "directory") {
-        return {
-          mode: "iframe",
-          platform: "twitch",
-          src: `https://player.twitch.tv/?channel=${twitchChan[1]}&parent=${host}&autoplay=true&controls=false`
-        };
+        return { mode: "iframe", platform: "twitch_chan", channel: twitchChan[1], rawUrl: url };
       }
 
-      // D. Deteksi Google Drive Video
       const gdriveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
       if (gdriveMatch && gdriveMatch[1]) {
-        return {
-          mode: "iframe",
-          platform: "gdrive",
-          src: `https://drive.google.com/file/d/${gdriveMatch[1]}/preview`
-        };
+        return { mode: "iframe", platform: "gdrive", rawUrl: `https://drive.google.com/file/d/${gdriveMatch[1]}/preview` };
       }
 
-      // E. Deteksi HLS (.m3u8)
       if (forcedType === "hls" || url.toLowerCase().includes(".m3u8")) {
         return { mode: "hls", src: url };
       }
 
-      // F. Deteksi Video Langsung (.mp4 / .webm)
       if (forcedType === "mp4" || /\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
         return { mode: "mp4", src: url };
       }
 
-      // G. Default: Iframe embed lainnya
-      return { mode: "iframe", platform: "other", src: url };
+      return { mode: "iframe", platform: "other", rawUrl: url };
     }
 
-    // Kontrol Suara untuk YouTube Iframe
-    function toggleYoutubeMute() {
-      isMuted = !isMuted;
-      const btn = document.getElementById("btn-yt-mute");
-      btn.textContent = isMuted ? "🔇 Bisukan" : "🔊 Suara";
+    function activateAudioAndPlay() {
+      isMuted = false;
+      unmuteBannerEl.classList.add("hidden");
+      soundToggleBtn.textContent = "🔊 Suara Aktif";
 
-      if (iframeEl && iframeEl.contentWindow) {
-        iframeEl.contentWindow.postMessage(JSON.stringify({
-          event: "command",
-          func: isMuted ? "mute" : "unMute",
-          args: []
-        }), "*");
+      if (currentMediaInfo && currentMediaInfo.mode === "iframe") {
+        // Saat unmute, langsung lompat ke detik server terkini agar tidak tertinggal
+        iframeEl.src = buildIframeUrl(currentMediaInfo, false, selectedQualityCode);
+      } else {
+        videoEl.muted = false;
+        const targetSec = getTargetElapsedSeconds();
+        if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
+          videoEl.currentTime = targetSec;
+        }
+        videoEl.play().catch(() => {});
       }
     }
 
-    // Kontrol Fullscreen Custom
+    function toggleSound() {
+      if (!currentMediaInfo) return;
+      isMuted = !isMuted;
+
+      if (isMuted) {
+        soundToggleBtn.textContent = "🔇 Suara Mati";
+        if (currentMediaInfo.mode === "iframe") {
+          iframeEl.src = buildIframeUrl(currentMediaInfo, true, selectedQualityCode);
+        } else {
+          videoEl.muted = true;
+        }
+      } else {
+        activateAudioAndPlay();
+      }
+    }
+
+    function syncToLiveNow() {
+      if (!currentData || currentData.status !== "LIVE" || !currentData.streamUrl) return;
+
+      if (currentMediaInfo && currentMediaInfo.mode === "iframe") {
+        iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, selectedQualityCode);
+      } else if (currentMediaInfo) {
+        const targetSec = getTargetElapsedSeconds();
+        if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
+          videoEl.currentTime = targetSec;
+        }
+        videoEl.play().catch(() => {});
+      }
+    }
+
     function toggleFullscreen() {
       if (!document.fullscreenElement) {
         videoBoxEl.requestFullscreen().catch(() => {});
@@ -848,7 +1115,7 @@
       }
     }
 
-    // 3. REAL-TIME DATA SIARAN & THUMBNAIL
+    // 5. REAL-TIME DATA SIARAN & THUMBNAIL
     streamRef.on("value", (snap) => {
       const data = snap.val();
 
@@ -867,6 +1134,7 @@
       const prevUrl = currentData ? currentData.streamUrl : "";
       const prevType = currentData ? currentData.streamType : "";
       const prevStatus = currentData ? currentData.status : "";
+      const prevStartedAt = currentData ? currentData.startedAt : 0;
       currentData = data;
 
       document.getElementById("event-name").textContent = data.eventName || "ZY STREAM LIVE";
@@ -885,7 +1153,12 @@
 
       if (status === "LIVE" && data.streamUrl && data.streamUrl.trim() !== "") {
         coverEl.classList.add("hidden");
-        if (prevUrl !== data.streamUrl || prevType !== data.streamType || prevStatus !== "LIVE") {
+        if (
+          prevUrl !== data.streamUrl ||
+          prevType !== data.streamType ||
+          prevStatus !== "LIVE" ||
+          prevStartedAt !== data.startedAt
+        ) {
           playStream(data.streamUrl.trim(), data.streamType || "auto");
         }
       } else {
@@ -912,34 +1185,55 @@
     function playStream(rawUrl, type) {
       stopStream();
       const media = resolveMediaSource(rawUrl, type);
+      currentMediaInfo = media;
+
+      shieldEl.classList.remove("hidden");
+      isMuted = true;
+      unmuteBannerEl.classList.remove("hidden");
+      soundToggleBtn.textContent = "🔇 Suara Mati";
 
       if (media.mode === "iframe") {
         videoEl.style.display = "none";
         iframeEl.style.display = "block";
-        shieldEl.classList.remove("hidden"); // Aktifkan pelindung klik iframe
-        iframeEl.src = media.src;
+        iframeEl.src = buildIframeUrl(media, true, selectedQualityCode);
       } else if (media.mode === "hls") {
         iframeEl.style.display = "none";
-        shieldEl.classList.add("hidden");
         videoEl.style.display = "block";
+        videoEl.muted = true;
 
         if (Hls.isSupported()) {
           hls = new Hls({ lowLatencyMode: true });
           hls.loadSource(media.src);
           hls.attachMedia(videoEl);
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            const targetSec = getTargetElapsedSeconds();
+            if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
+              videoEl.currentTime = targetSec;
+            }
             videoEl.play().catch(() => {});
           });
         } else if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
           videoEl.src = media.src;
-          videoEl.play().catch(() => {});
+          videoEl.onloadedmetadata = () => {
+            const targetSec = getTargetElapsedSeconds();
+            if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
+              videoEl.currentTime = targetSec;
+            }
+            videoEl.play().catch(() => {});
+          };
         }
       } else {
         iframeEl.style.display = "none";
-        shieldEl.classList.add("hidden");
         videoEl.style.display = "block";
+        videoEl.muted = true;
         videoEl.src = media.src;
-        videoEl.play().catch(() => {});
+        videoEl.onloadedmetadata = () => {
+          const targetSec = getTargetElapsedSeconds();
+          if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
+            videoEl.currentTime = targetSec;
+          }
+          videoEl.play().catch(() => {});
+        };
       }
     }
 
@@ -948,6 +1242,7 @@
         hls.destroy();
         hls = null;
       }
+      currentMediaInfo = null;
       videoEl.pause();
       videoEl.removeAttribute("src");
       videoEl.load();
@@ -955,12 +1250,6 @@
       iframeEl.src = "";
       iframeEl.style.display = "none";
       shieldEl.classList.add("hidden");
-    }
-
-    function refreshPlayer() {
-      if (currentData && currentData.status === "LIVE" && currentData.streamUrl) {
-        playStream(currentData.streamUrl.trim(), currentData.streamType || "auto");
-      }
     }
 
     function sharePage(btn) {
@@ -971,7 +1260,7 @@
       });
     }
 
-    // 4. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
+    // 6. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
     const EXPIRE_MS = 2 * 60 * 1000;
     const shownKeys = new Set();
     const avatarColors = ["#e11d48", "#7c3aed", "#2563eb", "#059669", "#d97706", "#db2777"];
