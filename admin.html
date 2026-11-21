@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ZY STREAM — Broadcast Control Center</title>
+  <title>ZY STREAM — Admin Studio (GitHub Pages)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,8 +17,7 @@
       --bg-body: #0c0c10;
       --bg-card: #14141a;
       --bg-input: #1c1c24;
-      --bg-hover: #22222c;
-      --border: rgba(255, 255, 255, 0.08);
+      --border-soft: rgba(255, 255, 255, 0.08);
       --text-white: #ffffff;
       --text-gray: #a1a1b2;
       --text-dim: #6e6e80;
@@ -27,699 +26,414 @@
       --green: #10b981;
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background-color: var(--bg-body);
-      color: var(--text-white);
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      line-height: 1.5;
-      min-height: 100vh;
-    }
-
-    /* LOCK SCREEN */
-    .lock-screen {
-      position: fixed;
-      inset: 0;
       background: var(--bg-body);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      z-index: 999;
+      color: var(--text-white);
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      line-height: 1.5;
+      padding-bottom: 60px;
     }
 
-    .lock-screen.hidden {
-      display: none;
-    }
-
-    .lock-box {
-      width: 100%;
-      max-width: 380px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 32px 28px;
-      text-align: center;
-    }
-
-    .lock-logo {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #ff2e63, #9b2cff);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 1.05rem;
-      margin-bottom: 16px;
-    }
-
-    .lock-box h2 {
-      font-size: 1.25rem;
-      font-weight: 800;
-      margin-bottom: 6px;
-    }
-
-    .lock-box p {
-      font-size: 0.85rem;
-      color: var(--text-gray);
-      margin-bottom: 20px;
-    }
-
-    .lock-error {
-      color: var(--accent);
-      font-size: 0.8rem;
-      margin-top: 10px;
-      display: none;
-    }
-
-    /* HEADER */
-    .header {
+    .topbar {
       height: 64px;
-      padding: 0 32px;
+      padding: 0 28px;
       background: rgba(12, 12, 16, 0.92);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border-soft);
       display: flex;
       align-items: center;
       justify-content: space-between;
       position: sticky;
       top: 0;
-      z-index: 50;
+      z-index: 30;
+      backdrop-filter: blur(12px);
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
-    }
-
-    .brand-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #ff2e63, #9b2cff);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 0.85rem;
-    }
-
-    .brand-title {
-      font-weight: 800;
-      font-size: 1.1rem;
-    }
-
-    .badge-studio {
-      font-size: 0.72rem;
-      font-weight: 700;
-      padding: 3px 9px;
-      border-radius: 6px;
-      background: rgba(245, 176, 65, 0.15);
-      color: var(--gold);
-    }
-
-    .total-viewers-pill {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      padding: 6px 14px;
-      border-radius: 99px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: var(--text-gray);
-    }
-
-    .total-viewers-pill strong {
-      color: var(--text-white);
-    }
-
-    /* MAIN WRAPPER */
-    .main-container {
-      max-width: 1440px;
-      margin: 0 auto;
-      padding: 24px 32px 60px;
-    }
-
-    /* 7 STREAM SELECTOR TABS */
-    .stream-tabs {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
       gap: 10px;
-      margin-bottom: 24px;
-    }
-
-    .stream-tab {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px 14px;
-      text-align: left;
-      color: var(--text-white);
-      cursor: pointer;
-      transition: all 0.18s ease;
-      font-family: inherit;
-    }
-
-    .stream-tab:hover {
-      background: var(--bg-hover);
-    }
-
-    .stream-tab.active {
-      border-color: var(--accent);
-      background: rgba(255, 46, 99, 0.1);
-    }
-
-    .tab-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px;
-    }
-
-    .tab-id {
-      font-size: 0.78rem;
       font-weight: 800;
-      color: var(--text-gray);
-    }
-
-    .stream-tab.active .tab-id {
-      color: var(--text-white);
-    }
-
-    .tab-status {
-      font-size: 0.66rem;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--text-dim);
-    }
-
-    .tab-status.live {
-      background: var(--accent);
-      color: #fff;
-    }
-
-    .tab-status.ended {
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text-dim);
-    }
-
-    .tab-viewers {
-      font-size: 0.8rem;
-      color: var(--text-gray);
-      font-weight: 600;
-    }
-
-    /* EDITOR GRID */
-    .editor-grid {
-      display: grid;
-      grid-template-columns: 1fr 390px;
-      gap: 24px;
-      align-items: start;
-    }
-
-    .panel {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-    }
-
-    .panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .panel-header h2 {
       font-size: 1.05rem;
-      font-weight: 800;
     }
 
-    /* STATUS SWITCHER BUTTONS */
-    .status-group {
+    .brand-badge {
+      background: linear-gradient(135deg, #ff2e63, #9b2cff);
+      padding: 4px 9px;
+      border-radius: 7px;
+      font-size: 0.78rem;
+    }
+
+    .site-selector {
+      background: var(--bg-input);
+      color: #fff;
+      border: 1px solid var(--border-soft);
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 700;
+      outline: none;
+    }
+
+    .layout {
+      max-width: 1200px;
+      margin: 26px auto 0;
+      padding: 0 24px;
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      grid-template-columns: 1.3fr 0.9fr;
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      border-radius: 16px;
+      padding: 22px;
       margin-bottom: 20px;
     }
 
-    .status-option {
-      padding: 12px;
-      border-radius: 10px;
-      background: var(--bg-input);
-      border: 1px solid transparent;
-      color: var(--text-gray);
-      font-family: inherit;
-      font-size: 0.84rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-
-    .status-option:hover {
-      background: var(--bg-hover);
-    }
-
-    .status-option.selected-standby {
-      border-color: var(--gold);
-      background: rgba(245, 176, 65, 0.14);
-      color: var(--gold);
-    }
-
-    .status-option.selected-live {
-      border-color: var(--accent);
-      background: rgba(255, 46, 99, 0.16);
-      color: #ff5c86;
-    }
-
-    .status-option.selected-ended {
-      border-color: #6e6e80;
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff;
-    }
-
-    /* FORM FIELDS */
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
+    .card-title {
+      font-size: 1rem;
+      font-weight: 800;
       margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    .form-group {
-      margin-bottom: 16px;
-    }
+    .form-group { margin-bottom: 14px; }
 
-    .form-label {
+    label {
       display: block;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 700;
       color: var(--text-gray);
       margin-bottom: 6px;
     }
 
-    .form-control {
+    input, textarea, select {
       width: 100%;
       background: var(--bg-input);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-soft);
       border-radius: 10px;
       padding: 11px 14px;
       color: var(--text-white);
       font-family: inherit;
-      font-size: 0.88rem;
+      font-size: 0.86rem;
       outline: none;
       transition: border-color 0.2s;
     }
 
-    .form-control:focus {
-      border-color: rgba(255, 255, 255, 0.3);
+    input:focus, textarea:focus, select:focus {
+      border-color: rgba(255, 46, 99, 0.6);
     }
 
-    textarea.form-control {
-      resize: vertical;
-      min-height: 92px;
-      line-height: 1.5;
-    }
-
-    /* THUMBNAIL PREVIEW */
-    .thumb-preview-wrap {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-    }
-
-    .thumb-preview {
-      width: 160px;
-      aspect-ratio: 16 / 9;
-      border-radius: 8px;
-      background: #0c0c10;
-      border: 1px solid var(--border);
-      background-size: cover;
-      background-position: center;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.72rem;
-      color: var(--text-dim);
-    }
-
-    /* ACTION BUTTONS */
-    .form-actions {
-      display: flex;
-      flex-wrap: wrap;
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 12px;
-      margin-top: 24px;
-      padding-top: 18px;
-      border-top: 1px solid var(--border);
+    }
+
+    .input-copy-group {
+      display: flex;
+      gap: 8px;
     }
 
     .btn {
-      padding: 11px 20px;
-      border-radius: 10px;
-      font-family: inherit;
-      font-size: 0.86rem;
-      font-weight: 700;
-      cursor: pointer;
-      border: none;
-      transition: opacity 0.2s, transform 0.15s;
-    }
-
-    .btn:hover {
-      opacity: 0.92;
-    }
-
-    .btn-save {
       background: var(--accent);
       color: #fff;
-      flex: 1;
-    }
-
-    .btn-sync {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      color: var(--text-white);
-    }
-
-    /* CHAT MODERATION PANEL */
-    .chat-panel {
-      display: flex;
-      flex-direction: column;
-      height: 680px;
-    }
-
-    .chat-tools {
-      display: flex;
-      gap: 8px;
-    }
-
-    .btn-mini {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      color: var(--text-gray);
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 0.75rem;
-      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 18px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 700;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      transition: opacity 0.2s, transform 0.1s;
     }
 
-    .btn-mini:hover {
+    .btn:hover { opacity: 0.92; }
+    .btn:active { transform: scale(0.99); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: #252530;
       color: #fff;
-      border-color: rgba(255, 255, 255, 0.25);
     }
 
-    .chat-stream {
-      flex: 1;
+    .btn-green {
+      background: var(--green);
+      color: #062419;
+    }
+
+    .status-bar {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .status-bar .btn { flex: 1; }
+
+    .rtmp-box {
+      background: rgba(255, 46, 99, 0.05);
+      border: 1px solid rgba(255, 46, 99, 0.22);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .rtmp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .rtmp-header span {
+      font-size: 0.84rem;
+      font-weight: 800;
+      color: #ff6b93;
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+
+    /* CHAT MODERATION */
+    .chat-box {
+      height: 360px;
       overflow-y: auto;
+      background: #101015;
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      padding-right: 4px;
-    }
-
-    .chat-stream::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    .chat-stream::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.14);
-      border-radius: 99px;
+      gap: 8px;
+      margin-bottom: 12px;
     }
 
     .chat-item {
-      background: var(--bg-input);
-      border-radius: 10px;
-      padding: 10px 12px;
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      gap: 10px;
-      font-size: 0.84rem;
-    }
-
-    .chat-item-body {
-      min-width: 0;
-      word-break: break-word;
-    }
-
-    .chat-item-name {
-      font-weight: 700;
-      color: #fff;
-      margin-right: 6px;
-    }
-
-    .chat-item-name.host {
-      color: var(--gold);
-    }
-
-    .host-pill {
-      background: var(--accent);
-      color: #fff;
-      font-size: 0.64rem;
-      font-weight: 800;
-      padding: 1px 5px;
-      border-radius: 4px;
-      margin-right: 5px;
-    }
-
-    .chat-item-text {
-      color: var(--text-gray);
-    }
-
-    .btn-del-msg {
-      background: none;
-      border: none;
-      color: var(--text-dim);
-      cursor: pointer;
-      font-size: 0.78rem;
-      padding: 2px 6px;
-      border-radius: 4px;
-      flex-shrink: 0;
-    }
-
-    .btn-del-msg:hover {
-      color: var(--accent);
-      background: rgba(255, 46, 99, 0.12);
-    }
-
-    .host-chat-form {
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid var(--border);
-      display: flex;
       gap: 8px;
+      background: var(--bg-input);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
     }
 
-    /* TOAST NOTIFICATION */
+    .del-btn {
+      background: rgba(255, 46, 99, 0.18);
+      color: #ff6b93;
+      border: none;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
     .toast {
       position: fixed;
       bottom: 24px;
       right: 24px;
-      background: #1e1e26;
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: #1e1e28;
+      border: 1px solid rgba(255,255,255,0.15);
       color: #fff;
       padding: 12px 18px;
-      border-radius: 10px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
-      transform: translateY(80px);
+      border-radius: 12px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
       opacity: 0;
-      transition: all 0.25s ease;
-      z-index: 100;
+      pointer-events: none;
+      transition: opacity 0.25s;
+      z-index: 50;
     }
 
-    .toast.show {
-      transform: translateY(0);
-      opacity: 1;
-    }
+    .toast.show { opacity: 1; }
 
-    /* RESPONSIVE */
-    @media (max-width: 1120px) {
-      .stream-tabs {
-        grid-template-columns: repeat(4, 1fr);
-      }
-      .editor-grid {
-        grid-template-columns: 1fr;
-      }
-      .chat-panel {
-        height: 460px;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .main-container {
-        padding: 16px;
-      }
-      .header {
-        padding: 0 16px;
-      }
-      .stream-tabs {
-        grid-template-columns: repeat(2, 1fr);
-      }
-      .form-row {
-        grid-template-columns: 1fr;
-      }
-      .thumb-preview-wrap {
-        flex-direction: column;
-        align-items: flex-start;
-      }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .row-2 { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
 
-   <!-- PIN LOCK SCREEN -->
-  <div class="lock-screen" id="lock-screen">
-    <div class="lock-box">
-      <div class="lock-logo">ZY</div>
-      <h2>ZY Stream Control</h2>
-      <p>Masukkan PIN operator untuk mengelola siaran langsung.</p>
-      <input type="password" id="pin-input" class="form-control" placeholder="Masukkan PIN..." style="text-align:center; letter-spacing: 4px; font-weight:700; margin-bottom:12px;" onkeydown="if(event.key==='Enter') unlockAdmin()" />
-      <button type="button" class="btn btn-save" style="width:100%;" onclick="unlockAdmin()">Masuk Studio</button>
-      <div class="lock-error" id="lock-error">PIN salah. Silakan coba lagi.</div>
-    </div>
-  </div>
-
-
-  <!-- HEADER -->
-  <header class="header">
+  <header class="topbar">
     <div class="brand">
-      <div class="brand-icon">ZY</div>
-      <span class="brand-title">ZY STREAM</span>
-      <span class="badge-studio">STUDIO CONTROL</span>
+      <span class="brand-badge">ZY STUDIO</span>
+      <span>Control Panel</span>
     </div>
 
-    <div class="total-viewers-pill">
-      <span>Total Penonton (7 Web):</span>
-      <strong id="global-viewers">0</strong>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span style="font-size:0.8rem; color:var(--text-gray);">Penonton: <strong id="admin-viewers" style="color:#fff;">0</strong></span>
+      <select id="site-id-select" class="site-selector" onchange="switchSite(this.value)">
+        <option value="stream_1">Channel 1 (stream_1)</option>
+        <option value="stream_2">Channel 2 (stream_2)</option>
+        <option value="stream_3">Channel 3 (stream_3)</option>
+        <option value="stream_4">Channel 4 (stream_4)</option>
+        <option value="stream_5">Channel 5 (stream_5)</option>
+        <option value="stream_6">Channel 6 (stream_6)</option>
+        <option value="stream_7">Channel 7 (stream_7)</option>
+      </select>
     </div>
   </header>
 
-  <!-- MAIN -->
-  <main class="main-container">
-    
-    <!-- SELECTOR 7 WEBSITE -->
-    <div class="stream-tabs" id="stream-tabs"></div>
-
-    <div class="editor-grid">
-      
-      <!-- LEFT: STREAM CONFIGURATION -->
-      <section class="panel">
-        <div class="panel-header">
-          <h2 id="editing-heading">Pengaturan Website 1 (stream_1)</h2>
-          <span style="font-size: 0.8rem; color: var(--text-gray);" id="current-tab-viewers">0 menonton</span>
+  <main class="layout">
+    <!-- KOLOM KIRI: STREAM & RTMP GENERATOR -->
+    <div>
+      <div class="card">
+        <div class="card-title">
+          <span>Pengaturan Siaran & RTMP Software</span>
+          <span id="current-status-pill" style="font-size:0.75rem; padding:4px 10px; border-radius:99px; background:#252530;">STANDBY</span>
         </div>
 
-        <form id="stream-form">
-          <!-- STATUS SIARAN -->
-          <div class="form-group">
-            <label class="form-label">Status Tayangan</label>
-            <div class="status-group">
-              <button type="button" class="status-option" id="btn-status-STANDBY" onclick="setFormStatus('STANDBY')">
-                Standby / Segera Tayang
-              </button>
-              <button type="button" class="status-option" id="btn-status-LIVE" onclick="setFormStatus('LIVE')">
-                ● LIVE Sekarang
-              </button>
-              <button type="button" class="status-option" id="btn-status-ENDED" onclick="setFormStatus('ENDED')">
-                Siaran Selesai
-              </button>
+        <!-- GENERATOR RTMP OTOMATIS (CLIENT-SIDE UNTUK GITHUB PAGES) -->
+        <div class="rtmp-box">
+          <div class="rtmp-header">
+            <span>📡 RTMP Ingest Otomatis (OBS / vMix / Streamlabs)</span>
+            <button type="button" class="btn" id="btn-gen-rtmp" onclick="generateRtmpCredentials()" style="padding:7px 14px; font-size:0.78rem;">
+              ⚡ Generate RTMP Key Baru
+            </button>
+          </div>
+
+          <!-- API KEY LIVEPEER (TERSMPAN LOKAL DI BROWSER KAMU, AMAN DI GITHUB PUBLIK) -->
+          <div class="form-group" style="margin-bottom:12px;">
+            <label style="color:#f5b041;">Livepeer Studio API Key (Tersimpan lokal di browser ini saja)</label>
+            <div class="input-copy-group">
+              <input type="password" id="livepeer-api-key" placeholder="Tempel API Key dari livepeer.studio/dashboard/developers/api-keys" onchange="saveLocalApiKey()" />
+              <button type="button" class="btn btn-secondary" onclick="saveLocalApiKey(true)">Simpan Key</button>
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="inp-event">Label Acara / Sub-judul</label>
-              <input type="text" id="inp-event" class="form-control" placeholder="Contoh: ZY AWARDS 2026 LIVE" />
+          <div class="row-2">
+            <div>
+              <label>RTMP Server URL (Custom Service di OBS)</label>
+              <div class="input-copy-group">
+                <input type="text" id="rtmp-server" value="rtmp://rtmp.livepeer.com/live" readonly />
+                <button type="button" class="btn btn-secondary" onclick="copyField('rtmp-server', this)">Salin</button>
+              </div>
             </div>
 
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="inp-type">Format Video / Stream</label>
-              <select id="inp-type" class="form-control">
-                <option value="hls">HLS Live Stream (.m3u8)</option>
-                <option value="iframe">Embed Link (iframe)</option>
-                <option value="mp4">Video Langsung (.mp4)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inp-title">Judul Tayangan</label>
-            <input type="text" id="inp-title" class="form-control" placeholder="Judul utama yang tampil di bawah layar..." required />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inp-url">Link Stream / Video URL</label>
-            <input type="url" id="inp-url" class="form-control" placeholder="https://... (.m3u8 / link embed / .mp4)" />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="inp-thumb">URL Gambar Thumbnail (Cover Sebelum Live)</label>
-            <div class="thumb-preview-wrap">
-              <div class="thumb-preview" id="thumb-preview">No Image</div>
-              <input type="url" id="inp-thumb" class="form-control" placeholder="https://... (link gambar poster 16:9)" oninput="updateThumbPreview(this.value)" />
+            <div>
+              <label>Stream Key</label>
+              <div class="input-copy-group">
+                <input type="text" id="rtmp-key" placeholder="Klik Generate RTMP Key..." readonly />
+                <button type="button" class="btn btn-secondary" onclick="copyField('rtmp-key', this)">Salin</button>
+              </div>
             </div>
           </div>
 
+          <div class="hint">
+            1. Masukkan API Key gratis dari <strong>livepeer.studio</strong> sekali saja (aman, tidak ikut ter-upload ke GitHub).<br>
+            2. Klik <strong>Generate RTMP Key Baru</strong> → otomatis mengisi link <code>.m3u8</code> multi-resolusi (1080p–360p) di bawah.<br>
+            3. Salin <strong>Server URL</strong> & <strong>Stream Key</strong> ke OBS (Settings → Stream → Custom) lalu klik <strong>Start Streaming</strong>.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Stream URL (Otomatis terisi saat Generate RTMP, atau tempel YouTube / Twitch / M3U8)</label>
+          <input type="text" id="stream-url" placeholder="https://livepeercdn.studio/hls/.../index.m3u8" />
+        </div>
+
+        <div class="row-2">
           <div class="form-group">
-            <label class="form-label" for="inp-desc">Deskripsi Acara</label>
-            <textarea id="inp-desc" class="form-control" placeholder="Tulis informasi acara, jadwal, atau catatan untuk penonton..."></textarea>
+            <label>Tipe Pemutar</label>
+            <select id="stream-type">
+              <option value="auto">Auto Detect (Rekomendasi)</option>
+              <option value="hls">HLS (.m3u8 / RTMP Output)</option>
+              <option value="mp4">MP4 Direct Video</option>
+            </select>
           </div>
 
-          <div class="form-actions">
-            <button type="submit" class="btn btn-save" id="btn-save">Simpan & Update Website Ini</button>
-            <button type="button" class="btn btn-sync" onclick="syncMetadataToAll()">Terapkan Info & Thumbnail ke Semua (1–7)</button>
+          <div class="form-group">
+            <label>Nama Acara (Subtitle Atas)</label>
+            <input type="text" id="event-name" placeholder="ZY STREAM SPECIAL" />
           </div>
+        </div>
+
+        <div class="form-group">
+          <label>Judul Tayangan</label>
+          <input type="text" id="stream-title" placeholder="Judul acara live..." />
+        </div>
+
+        <div class="form-group">
+          <label>Thumbnail / Poster Standby (URL Gambar)</label>
+          <input type="text" id="thumb-url" placeholder="https://..." />
+        </div>
+
+        <div class="form-group">
+          <label>Deskripsi Tayangan</label>
+          <textarea id="stream-desc" rows="3" placeholder="Informasi acara untuk penonton..."></textarea>
+        </div>
+
+        <div class="status-bar">
+          <button type="button" class="btn btn-green" onclick="saveAndSetStatus('LIVE')">▶ MULAI LIVE (SYNC DETIK 0)</button>
+          <button type="button" class="btn btn-secondary" onclick="saveAndSetStatus('STANDBY')">⏸ STANDBY</button>
+          <button type="button" class="btn" style="background:#374151;" onclick="saveAndSetStatus('ENDED')">⏹ AKHIRI</button>
+        </div>
+      </div>
+
+      <!-- AUTO-SUBTITLE INDONESIA KE SEMUA PENONTON HP/PC -->
+      <div class="card">
+        <div class="card-title">
+          <span>💬 Auto-Subtitle Bahasa Indonesia (Untuk Penonton Android / iOS / PC)</span>
+          <span id="host-cc-status" style="font-size:0.75rem; color:var(--text-dim);">OFF</span>
+        </div>
+
+        <div class="row-2" style="margin-bottom:10px;">
+          <select id="host-source-lang">
+            <option value="ko-KR">Bahasa Asal Audio: Korea (ko-KR)</option>
+            <option value="en-US">Bahasa Asal Audio: Inggris (en-US)</option>
+            <option value="ja-JP">Bahasa Asal Audio: Jepang (ja-JP)</option>
+          </select>
+          <button type="button" class="btn" id="btn-host-auto-cc" onclick="toggleHostAutoSubtitle()">
+            🎙️ Mulai Tangkap Audio Tab
+          </button>
+        </div>
+
+        <div id="host-cc-preview" style="background:#101015; border:1px solid var(--border-soft); border-radius:10px; padding:12px; font-size:0.82rem; color:var(--text-gray); min-height:48px;">
+          Putar video/stream di tab Chrome PC, lalu klik tombol di atas & centang <strong>"Bagikan audio tab"</strong>. Terjemahan Bahasa Indonesia akan langsung muncul di HP seluruh penonton.
+        </div>
+      </div>
+    </div>
+
+    <!-- KOLOM KANAN: MODERASI LIVE CHAT -->
+    <div>
+      <div class="card">
+        <div class="card-title">
+          <span>Moderasi Live Chat</span>
+          <button type="button" class="del-btn" onclick="clearAllChat()">Hapus Semua</button>
+        </div>
+
+        <div class="chat-box" id="admin-chat-list"></div>
+
+        <form id="admin-chat-form" style="display:flex; gap:8px;">
+          <input type="text" id="admin-msg-input" placeholder="Kirim pesan sebagai HOST..." maxlength="150" required />
+          <button type="submit" class="btn">Kirim</button>
         </form>
-      </section>
-
-      <!-- RIGHT: LIVE CHAT MODERATION -->
-      <aside class="panel chat-panel">
-        <div class="panel-header">
-          <h2>Live Chat (<span id="chat-target-label">Web 1</span>)</h2>
-          <div class="chat-tools">
-            <button type="button" class="btn-mini" onclick="clearAllChat()">Bersihkan Chat</button>
-          </div>
-        </div>
-
-        <div class="chat-stream" id="admin-chat-list">
-          <div style="margin:auto; color:var(--text-dim); font-size:0.84rem;">Belum ada pesan aktif.</div>
-        </div>
-
-        <form class="host-chat-form" onsubmit="sendHostMessage(event)">
-          <input type="text" id="host-msg-input" class="form-control" placeholder="Kirim pesan sebagai HOST..." maxlength="150" required />
-          <button type="submit" class="btn" style="background: var(--gold); color: #0c0c10; padding: 0 16px;">Kirim</button>
-        </form>
-      </aside>
-
+      </div>
     </div>
   </main>
 
-  <div class="toast" id="toast">Perubahan berhasil disimpan</div>
+  <div class="toast" id="toast">Tersimpan!</div>
 
   <script>
-    // ============================================================================
-    // PIN ADMIN (Ubah angka ini sesuai keinginanmu)
-    // ============================================================================
-    const ADMIN_PIN = "2026";
-
     const firebaseConfig = {
       apiKey: "AIzaSyB_H27U5OYilSY9QCHQhUSYlE5nXvzJNMk",
       authDomain: "zystreams-network.firebaseapp.com",
@@ -734,29 +448,22 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const STREAM_IDS = ["stream_1", "stream_2", "stream_3", "stream_4", "stream_5", "stream_6", "stream_7"];
-    let selectedStreamId = "stream_1";
-    let selectedStatus = "STANDBY";
+    let currentSiteId = "stream_1";
+    let streamRef = db.ref(`streams/${currentSiteId}/config`);
+    let viewersRef = db.ref(`streams/${currentSiteId}/viewers`);
+    let chatRef = db.ref(`streams/${currentSiteId}/chat`);
 
-    const allConfigs = {};
-    const allViewers = {};
-    let currentChatRef = null;
-
-    // CEK SESI LOGIN PIN
-    if (sessionStorage.getItem("zy_admin_unlocked") === "true") {
-      document.getElementById("lock-screen").classList.add("hidden");
+    // Muat Livepeer API Key yang tersimpan lokal di browser
+    const savedLpKey = localStorage.getItem("zy_livepeer_api_key");
+    if (savedLpKey) {
+      document.getElementById("livepeer-api-key").value = savedLpKey;
     }
 
-    function unlockAdmin() {
-      const val = document.getElementById("pin-input").value.trim();
-      if (val === "2026") {
-        sessionStorage.setItem("zy_admin_unlocked", "true");
-        document.getElementById("lock-screen").classList.add("hidden");
-      } else {
-        document.getElementById("lock-error").style.display = "block";
-      }
+    function saveLocalApiKey(notify = false) {
+      const key = document.getElementById("livepeer-api-key").value.trim();
+      localStorage.setItem("zy_livepeer_api_key", key);
+      if (notify) showToast("API Key disimpan di browser ini!");
     }
-
 
     function showToast(msg) {
       const t = document.getElementById("toast");
@@ -765,7 +472,294 @@
       setTimeout(() => t.classList.remove("show"), 2600);
     }
 
-    // RENDER TABS & PANTAU SEMUA 7 STREAM REAL-TIME
-    function initDashboard() {
-      const tabsContainer = document.getElementById("stream-tabs");
-     
+    function copyField(id, btn) {
+      const val = document.getElementById(id).value;
+      if (!val) return;
+      navigator.clipboard.writeText(val).then(() => {
+        const old = btn.textContent;
+        btn.textContent = "✓";
+        setTimeout(() => { btn.textContent = old; }, 1400);
+      });
+    }
+
+    // 1. GENERATE RTMP KEY OTOMATIS LANGSUNG DARI GITHUB PAGES (CLIENT-SIDE)
+    async function generateRtmpCredentials() {
+      const apiKey = document.getElementById("livepeer-api-key").value.trim();
+      if (!apiKey) {
+        alert("Masukkan Livepeer Studio API Key terlebih dahulu! Dapatkan gratis di livepeer.studio/dashboard/developers/api-keys");
+        document.getElementById("livepeer-api-key").focus();
+        return;
+      }
+
+      saveLocalApiKey();
+      const btn = document.getElementById("btn-gen-rtmp");
+      const titleVal = document.getElementById("stream-title").value.trim() || `ZY-${currentSiteId}-${Date.now()}`;
+
+      btn.disabled = true;
+      btn.textContent = "⏳ Membuat Key...";
+
+      try {
+        const res = await fetch("https://livepeer.studio/api/stream", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            name: titleVal.slice(0, 60),
+            profiles: [
+              { name: "1080p", bitrate: 4000000, fps: 30, width: 1920, height: 1080 },
+              { name: "720p", bitrate: 2000000, fps: 30, width: 1280, height: 720 },
+              { name: "480p", bitrate: 1000000, fps: 30, width: 854, height: 480 },
+              { name: "360p", bitrate: 500000, fps: 30, width: 640, height: 360 }
+            ]
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.errors ? data.errors.join(", ") : "API Key tidak valid atau gagal membuat stream.");
+        }
+
+        const rtmpServer = "rtmp://rtmp.livepeer.com/live";
+        const playbackUrl = `https://livepeercdn.studio/hls/${data.playbackId}/index.m3u8`;
+
+        document.getElementById("rtmp-server").value = rtmpServer;
+        document.getElementById("rtmp-key").value = data.streamKey;
+        document.getElementById("stream-url").value = playbackUrl;
+        document.getElementById("stream-type").value = "hls";
+
+        await streamRef.update({
+          rtmpServer: rtmpServer,
+          rtmpKey: data.streamKey,
+          streamUrl: playbackUrl,
+          streamType: "hls"
+        });
+
+        showToast("RTMP Key & URL .m3u8 berhasil dibuat!");
+      } catch (err) {
+        alert("Error: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "⚡ Generate RTMP Key Baru";
+      }
+    }
+
+    // 2. GANTI CHANNEL & MUAT DATA FIREBASE
+    function switchSite(newId) {
+      streamRef.off();
+      viewersRef.off();
+      chatRef.off();
+
+      currentSiteId = newId;
+      streamRef = db.ref(`streams/${currentSiteId}/config`);
+      viewersRef = db.ref(`streams/${currentSiteId}/viewers`);
+      chatRef = db.ref(`streams/${currentSiteId}/chat`);
+      bindFirebaseListeners();
+    }
+
+    function bindFirebaseListeners() {
+      viewersRef.on("value", (snap) => {
+        document.getElementById("admin-viewers").textContent = snap.numChildren();
+      });
+
+      streamRef.on("value", (snap) => {
+        const d = snap.val() || {};
+        document.getElementById("rtmp-server").value = d.rtmpServer || "rtmp://rtmp.livepeer.com/live";
+        document.getElementById("rtmp-key").value = d.rtmpKey || "";
+        document.getElementById("stream-url").value = d.streamUrl || "";
+        document.getElementById("stream-type").value = d.streamType || "auto";
+        document.getElementById("event-name").value = d.eventName || "";
+        document.getElementById("stream-title").value = d.title || "";
+        document.getElementById("thumb-url").value = d.thumbnailUrl || "";
+        document.getElementById("stream-desc").value = d.description || "";
+
+        const st = (d.status || "STANDBY").toUpperCase();
+        const pill = document.getElementById("current-status-pill");
+        pill.textContent = st;
+        pill.style.background = st === "LIVE" ? "#ff2e63" : "#252530";
+      });
+
+      const chatList = document.getElementById("admin-chat-list");
+      chatList.innerHTML = "";
+      chatRef.limitToLast(50).on("child_added", (snap) => {
+        const m = snap.val();
+        if (!m) return;
+        const div = document.createElement("div");
+        div.className = "chat-item";
+        div.id = `adm-msg-${snap.key}`;
+        div.innerHTML = `
+          <div>
+            <strong style="color:${m.isAdmin ? '#f5b041' : '#fff'}">${m.name || 'User'}:</strong>
+            <span style="color:#c2c2d1;">${m.text || ''}</span>
+          </div>
+          <button type="button" class="del-btn" onclick="deleteChat('${snap.key}')">Hapus</button>
+        `;
+        chatList.appendChild(div);
+        chatList.scrollTop = chatList.scrollHeight;
+      });
+
+      chatRef.on("child_removed", (snap) => {
+        const el = document.getElementById(`adm-msg-${snap.key}`);
+        if (el) el.remove();
+      });
+    }
+
+    function saveAndSetStatus(status) {
+      const payload = {
+        rtmpServer: document.getElementById("rtmp-server").value.trim(),
+        rtmpKey: document.getElementById("rtmp-key").value.trim(),
+        streamUrl: document.getElementById("stream-url").value.trim(),
+        streamType: document.getElementById("stream-type").value,
+        eventName: document.getElementById("event-name").value.trim(),
+        title: document.getElementById("stream-title").value.trim(),
+        thumbnailUrl: document.getElementById("thumb-url").value.trim(),
+        description: document.getElementById("stream-desc").value.trim(),
+        status: status
+      };
+
+      if (status === "LIVE") {
+        payload.startedAt = firebase.database.ServerValue.TIMESTAMP;
+      }
+
+      streamRef.update(payload).then(() => {
+        showToast(`Status diubah ke ${status}!`);
+      });
+    }
+
+    // 3. MODERASI CHAT
+    function deleteChat(key) {
+      chatRef.child(key).remove();
+    }
+
+    function clearAllChat() {
+      if (confirm("Hapus semua pesan obrolan?")) chatRef.remove();
+    }
+
+    document.getElementById("admin-chat-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = document.getElementById("admin-msg-input");
+      const text = input.value.trim();
+      if (!text) return;
+
+      chatRef.push({
+        name: "HOST",
+        text: text,
+        isAdmin: true,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      }).then(() => {
+        input.value = "";
+      });
+    });
+
+    // 4. HOST AUTO-SUBTITLE (KOREA/INGGRIS/JEPANG -> INDONESIA KE SEMUA HP PENONTON)
+    let hostCcActive = false;
+    let hostTabStream = null;
+    let hostRecognizer = null;
+    let lastSentSource = "";
+
+    async function translateAndBroadcastToViewers(spokenText) {
+      const cleanText = spokenText.trim();
+      if (!cleanText || cleanText === lastSentSource) return;
+      lastSentSource = cleanText;
+
+      const sourceLang = document.getElementById("host-source-lang").value.split("-")[0];
+      const previewEl = document.getElementById("host-cc-preview");
+
+      try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=id&dt=t&q=${encodeURIComponent(cleanText)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data && data[0]) {
+          const indonesianText = data[0].map((item) => item[0]).join("");
+          previewEl.innerHTML = `<span style="color:#6e6e80;">[${cleanText}]</span><br><strong style="color:#fff;">🇮🇩 ${indonesianText}</strong>`;
+
+          streamRef.update({
+            liveCaption: indonesianText,
+            captionUpdatedAt: firebase.database.ServerValue.TIMESTAMP
+          });
+        }
+      } catch (err) {}
+    }
+
+    async function toggleHostAutoSubtitle() {
+      const btn = document.getElementById("btn-host-auto-cc");
+      const statusEl = document.getElementById("host-cc-status");
+      const previewEl = document.getElementById("host-cc-preview");
+
+      if (hostCcActive) {
+        hostCcActive = false;
+        btn.textContent = "🎙️ Mulai Tangkap Audio Tab";
+        btn.style.background = "#ff2e63";
+        statusEl.textContent = "OFF";
+        statusEl.style.color = "#6e6e80";
+
+        if (hostRecognizer) {
+          try { hostRecognizer.onend = null; hostRecognizer.stop(); } catch (e) {}
+          hostRecognizer = null;
+        }
+        if (hostTabStream) {
+          hostTabStream.getTracks().forEach((t) => t.stop());
+          hostTabStream = null;
+        }
+        streamRef.update({ liveCaption: "" });
+        return;
+      }
+
+      try {
+        hostTabStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        });
+        hostTabStream.getVideoTracks().forEach((t) => t.stop());
+
+        if (hostTabStream.getAudioTracks().length === 0) {
+          alert("Centang kotak 'Bagikan audio tab' pada jendela pilihan browser!");
+          hostTabStream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          alert("Gunakan Google Chrome atau Microsoft Edge di PC/Laptop untuk fitur ini.");
+          return;
+        }
+
+        hostCcActive = true;
+        btn.textContent = "⏹ Hentikan Subtitle";
+        btn.style.background = "#374151";
+        statusEl.textContent = "ON AIR";
+        statusEl.style.color = "#10b981";
+        previewEl.textContent = "Mendengarkan audio dari tab...";
+
+        hostRecognizer = new SpeechRecognition();
+        hostRecognizer.continuous = true;
+        hostRecognizer.interimResults = false;
+        hostRecognizer.lang = document.getElementById("host-source-lang").value;
+
+        hostRecognizer.onresult = (event) => {
+          if (!hostCcActive) return;
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+              translateAndBroadcastToViewers(event.results[i][0].transcript);
+            }
+          }
+        };
+
+        hostRecognizer.onend = () => {
+          if (hostCcActive && hostRecognizer) {
+            try { hostRecognizer.start(); } catch (e) {}
+          }
+        };
+
+        hostRecognizer.start();
+      } catch (e) {
+        previewEl.textContent = "Izin tangkap audio tab dibatalkan.";
+      }
+    }
+
+    bindFirebaseListeners();
+  </script>
+</body>
+</html>
