@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="referrer" content="no-referrer" />
   <title>ZY STREAM — Live</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,10 +11,6 @@
   
   <!-- HLS.js -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
-  <!-- YouTube IFrame API & Twitch Interactive Embed SDK -->
-  <script src="https://www.youtube.com/iframe_api"></script>
-  <script src="https://player.twitch.tv/js/embed/v1.js"></script>
 
   <!-- Firebase Realtime Database -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -167,35 +163,18 @@
     }
 
     .video-box video {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       border: none;
-      display: block;
       object-fit: contain;
       background: #000;
       pointer-events: none;
+      z-index: 2;
     }
 
-    /* Container khusus SDK YouTube & Twitch (terpotong tipis untuk menyembunyikan watermark) */
-    .sdk-container {
-      position: absolute;
-      top: -6%;
-      left: -2%;
-      width: 104%;
-      height: 112%;
-      background: #000;
-      pointer-events: none;
-      display: none;
-    }
-
-    .sdk-container iframe {
-      width: 100% !important;
-      height: 100% !important;
-      border: none !important;
-      pointer-events: none !important;
-    }
-
-    .generic-iframe {
+    .video-box iframe {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -203,14 +182,65 @@
       border: none;
       background: #000;
       pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Zoom tipis khusus untuk YouTube/Twitch agar watermark & judul platform terpotong */
+    .video-box iframe.cropped-embed {
+      top: -6%;
+      left: -2%;
+      width: 104%;
+      height: 112%;
+    }
+
+    /* AUTO-SUBTITLE BAHASA INDONESIA OVERLAY */
+    .subtitle-overlay {
+      position: absolute;
+      left: 50%;
+      bottom: 62px;
+      transform: translateX(-50%);
+      width: 86%;
+      max-width: 780px;
+      text-align: center;
+      z-index: 8;
+      pointer-events: none;
       display: none;
+    }
+
+    .subtitle-overlay.active {
+      display: block;
+    }
+
+    .subtitle-box {
+      display: inline-block;
+      background: rgba(10, 10, 14, 0.84);
+      backdrop-filter: blur(6px);
+      color: #ffffff;
+      font-size: 1.05rem;
+      font-weight: 600;
+      line-height: 1.45;
+      padding: 8px 18px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+    }
+
+    .subtitle-lang-tag {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      color: var(--gold);
+      margin-bottom: 2px;
+      text-transform: uppercase;
     }
 
     /* SHIELD OVERLAY & CUSTOM CONTROLS */
     .player-shield {
       position: absolute;
       inset: 0;
-      z-index: 6;
+      z-index: 7;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -233,8 +263,10 @@
 
     .shield-center {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 10px;
       pointer-events: none;
     }
 
@@ -260,6 +292,20 @@
       display: none;
     }
 
+    .stream-notice {
+      background: rgba(20, 20, 26, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: var(--text-gray);
+      font-size: 0.78rem;
+      padding: 6px 14px;
+      border-radius: 99px;
+      display: none;
+    }
+
+    .stream-notice.show {
+      display: inline-block;
+    }
+
     @keyframes bounceSoft {
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.04); }
@@ -270,7 +316,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+      background: linear-gradient(to top, rgba(0,0,0,0.88), transparent);
       opacity: 0;
       transition: opacity 0.25s ease;
     }
@@ -289,25 +335,31 @@
     }
 
     .ctrl-btn {
-      background: rgba(20, 20, 26, 0.88);
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(20, 20, 26, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.16);
       color: #fff;
-      padding: 7px 13px;
+      padding: 7px 12px;
       border-radius: 8px;
       font-family: inherit;
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 700;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 6px;
       backdrop-filter: blur(8px);
-      transition: background 0.15s;
+      transition: background 0.15s, border-color 0.15s;
     }
 
     .ctrl-btn:hover {
       background: rgba(255, 46, 99, 0.85);
       border-color: transparent;
+    }
+
+    .ctrl-btn.cc-active {
+      background: rgba(245, 176, 65, 0.22);
+      border-color: var(--gold);
+      color: var(--gold);
     }
 
     .sync-clock {
@@ -330,17 +382,17 @@
       position: absolute;
       bottom: calc(100% + 8px);
       right: 0;
-      min-width: 165px;
-      background: rgba(18, 18, 24, 0.96);
-      border: 1px solid rgba(255, 255, 255, 0.14);
+      min-width: 175px;
+      background: rgba(18, 18, 24, 0.97);
+      border: 1px solid rgba(255, 255, 255, 0.16);
       border-radius: 12px;
       padding: 6px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.75);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8);
       backdrop-filter: blur(14px);
       display: none;
       flex-direction: column;
       gap: 2px;
-      z-index: 20;
+      z-index: 25;
     }
 
     .quality-menu.open {
@@ -379,7 +431,7 @@
     }
 
     .quality-item.active {
-      background: rgba(255, 46, 99, 0.18);
+      background: rgba(255, 46, 99, 0.22);
       color: #fff;
     }
 
@@ -746,6 +798,10 @@
       .shield-top, .shield-bottom {
         opacity: 1;
       }
+      .subtitle-box {
+        font-size: 0.86rem;
+        padding: 6px 12px;
+      }
     }
   </style>
 </head>
@@ -788,6 +844,14 @@
           </div>
         </div>
 
+        <!-- AUTO-SUBTITLE BAHASA INDONESIA -->
+        <div class="subtitle-overlay" id="subtitle-overlay">
+          <div class="subtitle-box">
+            <span class="subtitle-lang-tag" id="subtitle-tag">SUBTITLE OTOMATIS • BAHASA INDONESIA</span>
+            <span id="subtitle-text"></span>
+          </div>
+        </div>
+
         <!-- Pelindung Klik & Kontrol Sinkronisasi ZY Stream -->
         <div class="player-shield hidden" id="player-shield" oncontextmenu="return false;">
           <div class="shield-top">
@@ -799,33 +863,24 @@
             <button type="button" class="unmute-banner" id="unmute-banner" onclick="activateAudioAndPlay()">
               🔊 Ketuk untuk Nyalakan Suara
             </button>
+            <div class="stream-notice" id="stream-notice">Memuat aliran video...</div>
           </div>
 
           <div class="shield-bottom">
             <div class="ctrl-group">
               <button type="button" class="ctrl-btn" id="btn-sound-toggle" onclick="toggleSound()">🔇 Suara Mati</button>
-              <button type="button" class="ctrl-btn" onclick="syncToLiveNow()">↻ Sinkron Detik</button>
+              <button type="button" class="ctrl-btn" onclick="syncToLiveNow()">↻ Sinkron</button>
             </div>
 
             <div class="ctrl-group">
+              <!-- TOMBOL AUTO-SUBTITLE BAHASA INDONESIA -->
+              <button type="button" class="ctrl-btn" id="btn-cc" onclick="toggleIndonesianSubtitle()">💬 CC Indonesia: OFF</button>
+
+              <!-- PEMILIH KUALITAS DINAMIS -->
               <div class="quality-wrapper">
                 <div class="quality-menu" id="quality-menu">
                   <div class="quality-header">Kualitas Video</div>
-                  <button type="button" class="quality-item active" data-q="auto" onclick="selectQuality('auto', 'Auto')">
-                    <span>Otomatis</span>
-                  </button>
-                  <button type="button" class="quality-item" data-q="hd1080" onclick="selectQuality('hd1080', '1080p')">
-                    <span>1080p</span><span class="quality-badge">FHD</span>
-                  </button>
-                  <button type="button" class="quality-item" data-q="hd720" onclick="selectQuality('hd720', '720p')">
-                    <span>720p</span><span class="quality-badge">HD</span>
-                  </button>
-                  <button type="button" class="quality-item" data-q="large" onclick="selectQuality('large', '480p')">
-                    <span>480p</span>
-                  </button>
-                  <button type="button" class="quality-item" data-q="medium" onclick="selectQuality('medium', '360p')">
-                    <span>360p (Hemat)</span>
-                  </button>
+                  <div id="quality-options-list"></div>
                 </div>
                 <button type="button" class="ctrl-btn" id="btn-quality" onclick="toggleQualityMenu(event)">⚙ Auto</button>
               </div>
@@ -835,19 +890,8 @@
           </div>
         </div>
 
-        <!-- Engine 1: HTML5 Video (MP4 & HLS) -->
-        <video id="video-player" oncontextmenu="return false;" playsinline></video>
-
-        <!-- Engine 2: YouTube IFrame API Mount -->
-        <div id="yt-mount-wrap" class="sdk-container">
-          <div id="yt-player-target"></div>
-        </div>
-
-        <!-- Engine 3: Twitch Interactive Embed Mount -->
-        <div id="twitch-mount-wrap" class="sdk-container"></div>
-
-        <!-- Engine 4: Generic Iframe (GDrive / Lainnya) -->
-        <iframe id="generic-iframe" class="generic-iframe" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+        <video id="video-player" muted playsinline style="display:none;" oncontextmenu="return false;"></video>
+        <iframe id="iframe-player" style="display:none;" referrerpolicy="no-referrer" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
       </div>
 
       <div class="show-details">
@@ -923,14 +967,18 @@
 
     const videoBoxEl = document.getElementById("video-box");
     const videoEl = document.getElementById("video-player");
-    const ytWrapEl = document.getElementById("yt-mount-wrap");
-    const twitchWrapEl = document.getElementById("twitch-mount-wrap");
-    const genericIframeEl = document.getElementById("generic-iframe");
+    const iframeEl = document.getElementById("iframe-player");
     const shieldEl = document.getElementById("player-shield");
+    const noticeEl = document.getElementById("stream-notice");
     const syncClockEl = document.getElementById("sync-clock");
     const unmuteBannerEl = document.getElementById("unmute-banner");
     const soundToggleBtn = document.getElementById("btn-sound-toggle");
+    const ccBtn = document.getElementById("btn-cc");
+    const subOverlayEl = document.getElementById("subtitle-overlay");
+    const subTagEl = document.getElementById("subtitle-tag");
+    const subTextEl = document.getElementById("subtitle-text");
     const qualityMenuEl = document.getElementById("quality-menu");
+    const qualityListEl = document.getElementById("quality-options-list");
     const qualityBtnEl = document.getElementById("btn-quality");
     const coverEl = document.getElementById("thumbnail-cover");
     const liveBadgeEl = document.getElementById("live-badge");
@@ -940,25 +988,30 @@
 
     let currentData = null;
     let hls = null;
-    let ytPlayer = null;
-    let ytApiReady = false;
-    let pendingYtVideoId = null;
-    let twitchPlayer = null;
     let currentMediaInfo = null;
     let isMuted = true;
-    let selectedQualityCode = "auto";
+    let selectedQualityValue = "auto";
     let serverTimeOffset = 0;
 
-    // 1. CALLBACK SAAT YOUTUBE IFRAME API SIAP
-    window.onYouTubeIframeAPIReady = function () {
-      ytApiReady = true;
-      if (pendingYtVideoId) {
-        mountYouTubePlayer(pendingYtVideoId);
-        pendingYtVideoId = null;
-      }
-    };
+    // State Subtitle Otomatis Bahasa Indonesia
+    let ccEnabled = false;
+    let speechRecognizer = null;
+    let lastTranslatedSource = "";
+    let subClearTimer = null;
 
-    // 2. KALIBRASI JAM SERVER FIREBASE
+    function showNotice(text, autoHideMs = 0) {
+      if (!text) {
+        noticeEl.classList.remove("show");
+        return;
+      }
+      noticeEl.textContent = text;
+      noticeEl.classList.add("show");
+      if (autoHideMs > 0) {
+        setTimeout(() => noticeEl.classList.remove("show"), autoHideMs);
+      }
+    }
+
+    // 1. KALIBRASI JAM SERVER FIREBASE
     db.ref(".info/serverTimeOffset").on("value", (snap) => {
       serverTimeOffset = snap.val() || 0;
     });
@@ -981,25 +1034,11 @@
       return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
     }
 
-    // Penjaga sinkronisasi detik setiap 1 detik
     setInterval(() => {
       if (!currentData || currentData.status !== "LIVE") return;
       const targetSec = getTargetElapsedSeconds();
       syncClockEl.textContent = formatTime(targetSec);
 
-      // Sinkron otomatis YouTube Replay jika selisih > 3 detik
-      if (currentMediaInfo && currentMediaInfo.platform === "youtube" && ytPlayer && typeof ytPlayer.getCurrentTime === "function") {
-        const dur = ytPlayer.getDuration ? ytPlayer.getDuration() : 0;
-        // Jika dur > 0 berarti video VOD/Replay (bukan live murni yang durasinya 0/Infinity)
-        if (dur > 0 && isFinite(dur)) {
-          const clamped = Math.min(targetSec, Math.max(0, dur - 1));
-          if (Math.abs(ytPlayer.getCurrentTime() - clamped) > 3) {
-            ytPlayer.seekTo(clamped, true);
-          }
-        }
-      }
-
-      // Sinkron otomatis HTML5 Video (MP4 / HLS)
       if (currentMediaInfo && (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls")) {
         if (!videoEl.paused && videoEl.readyState >= 2 && isFinite(videoEl.duration)) {
           const clampedTarget = Math.min(targetSec, Math.max(0, videoEl.duration - 1));
@@ -1010,7 +1049,7 @@
       }
     }, 1000);
 
-    // 3. REAL-TIME JUMLAH PENONTON AKTIF
+    // 2. REAL-TIME JUMLAH PENONTON AKTIF
     const myPresenceRef = viewersRef.push();
     db.ref(".info/connected").on("value", (snap) => {
       if (snap.val() === true) {
@@ -1023,7 +1062,119 @@
       document.getElementById("viewer-count").textContent = snap.numChildren().toLocaleString("id-ID");
     });
 
-    // 4. PENGATURAN KUALITAS VIDEO (YouTube API, Twitch SDK, HLS)
+    // 3. FITUR AUTO-SUBTITLE BAHASA INDONESIA
+    async function translateToIndonesian(text) {
+      const clean = text.trim();
+      if (!clean || clean === lastTranslatedSource) return;
+      lastTranslatedSource = clean;
+
+      try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=id&dt=t&q=${encodeURIComponent(clean)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data && data[0]) {
+          const translated = data[0].map((part) => part[0]).join("");
+          renderSubtitleLine(translated, "AUTO-TRANSLATE • INDONESIA");
+        }
+      } catch (e) {
+        renderSubtitleLine(clean, "TRANSKRIP LANGSUNG");
+      }
+    }
+
+    function renderSubtitleLine(text, sourceLabel) {
+      if (!ccEnabled || !text) return;
+      subTagEl.textContent = sourceLabel || "SUBTITLE • BAHASA INDONESIA";
+      subTextEl.textContent = text;
+      subOverlayEl.classList.add("active");
+
+      clearTimeout(subClearTimer);
+      subClearTimer = setTimeout(() => {
+        subOverlayEl.classList.remove("active");
+      }, 6500);
+    }
+
+    function bindVideoNativeTextTracks() {
+      if (!videoEl.textTracks) return;
+      for (let i = 0; i < videoEl.textTracks.length; i++) {
+        const track = videoEl.textTracks[i];
+        track.mode = "hidden";
+        track.oncuechange = () => {
+          if (!ccEnabled) return;
+          const active = track.activeCues && track.activeCues[0];
+          if (active && active.text) {
+            const rawLine = active.text.replace(/<[^>]*>/g, " ").trim();
+            translateToIndonesian(rawLine);
+          }
+        };
+      }
+    }
+
+    function startLiveSpeechSubtitle() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return;
+
+      stopLiveSpeechSubtitle();
+      speechRecognizer = new SpeechRecognition();
+      speechRecognizer.continuous = true;
+      speechRecognizer.interimResults = true;
+      speechRecognizer.lang = (currentData && currentData.sourceLang) ? currentData.sourceLang : "ko-KR";
+
+      speechRecognizer.onresult = (event) => {
+        if (!ccEnabled) return;
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript.trim().length > 2) {
+          translateToIndonesian(transcript);
+        }
+      };
+
+      speechRecognizer.onerror = () => {};
+      speechRecognizer.onend = () => {
+        if (ccEnabled && speechRecognizer) {
+          try { speechRecognizer.start(); } catch (e) {}
+        }
+      };
+
+      try { speechRecognizer.start(); } catch (e) {}
+    }
+
+    function stopLiveSpeechSubtitle() {
+      if (speechRecognizer) {
+        try { speechRecognizer.onend = null; speechRecognizer.stop(); } catch (e) {}
+        speechRecognizer = null;
+      }
+    }
+
+    function toggleIndonesianSubtitle() {
+      ccEnabled = !ccEnabled;
+      ccBtn.classList.toggle("cc-active", ccEnabled);
+      ccBtn.textContent = ccEnabled ? "💬 CC Indonesia: ON" : "💬 CC Indonesia: OFF";
+
+      if (ccEnabled) {
+        // Jika YouTube iframe aktif, nyalakan juga cc_load_policy=1&hl=id
+        if (currentMediaInfo && currentMediaInfo.platform === "youtube") {
+          iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, selectedQualityValue, true);
+        }
+        // Cek apakah ada live caption dari Admin di Firebase
+        if (currentData && currentData.liveCaption) {
+          renderSubtitleLine(currentData.liveCaption, "HOST SUBTITLE • INDONESIA");
+        } else {
+          renderSubtitleLine("Subtitle otomatis Bahasa Indonesia aktif...", "ZY STREAM CC");
+        }
+        bindVideoNativeTextTracks();
+        startLiveSpeechSubtitle();
+      } else {
+        subOverlayEl.classList.remove("active");
+        stopLiveSpeechSubtitle();
+        if (currentMediaInfo && currentMediaInfo.platform === "youtube") {
+          iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, selectedQualityValue, false);
+        }
+      }
+    }
+
+    // 4. MENU KUALITAS VIDEO DINAMIS (Bekerja untuk HLS, YouTube, Twitch)
     function toggleQualityMenu(e) {
       e.stopPropagation();
       const isOpen = qualityMenuEl.classList.toggle("open");
@@ -1035,183 +1186,153 @@
       shieldEl.classList.remove("menu-open");
     });
 
-    function selectQuality(qCode, label) {
-      selectedQualityCode = qCode;
-      qualityBtnEl.textContent = `⚙ ${label}`;
-
-      document.querySelectorAll(".quality-item").forEach((item) => {
-        item.classList.toggle("active", item.dataset.q === qCode);
+    function buildQualityMenuOptions(options) {
+      qualityListEl.innerHTML = "";
+      options.forEach((opt) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = `quality-item ${String(selectedQualityValue) === String(opt.value) ? "active" : ""}`;
+        btn.innerHTML = `<span>${opt.label}</span>${opt.badge ? `<span class="quality-badge">${opt.badge}</span>` : ""}`;
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          applyQualitySelection(opt.value, opt.label);
+        };
+        qualityListEl.appendChild(btn);
       });
+    }
 
+    function applyQualitySelection(val, label) {
+      selectedQualityValue = val;
+      qualityBtnEl.textContent = `⚙ ${label}`;
       qualityMenuEl.classList.remove("open");
       shieldEl.classList.remove("menu-open");
 
-      applyQualityToActivePlayer(qCode);
-    }
+      // Refresh highlight aktif di menu
+      qualityListEl.querySelectorAll(".quality-item").forEach((el) => {
+        el.classList.toggle("active", el.textContent.includes(label));
+      });
 
-    function applyQualityToActivePlayer(qCode) {
       if (!currentMediaInfo) return;
 
-      // A. YouTube Player API (Memaksa resolusi atas & bawah agar benar-benar berubah)
-      if (currentMediaInfo.platform === "youtube" && ytPlayer && typeof ytPlayer.setPlaybackQuality === "function") {
-        if (qCode === "auto") {
-          if (typeof ytPlayer.setPlaybackQualityRange === "function") {
-            ytPlayer.setPlaybackQualityRange("small", "highres");
-          }
-          ytPlayer.setPlaybackQuality("default");
-        } else {
-          if (typeof ytPlayer.setPlaybackQualityRange === "function") {
-            ytPlayer.setPlaybackQualityRange(qCode, qCode);
-          }
-          ytPlayer.setPlaybackQuality(qCode);
-        }
-      }
-
-      // B. Twitch Interactive SDK
-      if ((currentMediaInfo.platform === "twitch_chan" || currentMediaInfo.platform === "twitch_vod") && twitchPlayer && typeof twitchPlayer.setQuality === "function") {
-        if (qCode === "auto") {
-          twitchPlayer.setQuality("chunked");
-        } else {
-          const targetH = qCode === "hd1080" ? "1080" : qCode === "hd720" ? "720" : qCode === "large" ? "480" : "360";
-          const qualities = twitchPlayer.getQualities ? twitchPlayer.getQualities() : [];
-          const matched = qualities.find((q) => q.name && q.name.includes(targetH));
-          if (matched) {
-            twitchPlayer.setQuality(matched.group);
-          }
-        }
-      }
-
-      // C. HLS.js (.m3u8)
+      // A. HLS (.m3u8) -> Langsung ganti level bitrate di Hls.js!
       if (hls && hls.levels && hls.levels.length > 0) {
-        if (qCode === "auto") {
+        if (val === "auto") {
           hls.currentLevel = -1;
+          hls.nextLevel = -1;
         } else {
-          const targetHeight = qCode === "hd1080" ? 1080 : qCode === "hd720" ? 720 : qCode === "large" ? 480 : 360;
-          let bestIdx = 0;
-          hls.levels.forEach((lvl, idx) => {
-            if (lvl.height <= targetHeight) bestIdx = idx;
-          });
-          hls.currentLevel = bestIdx;
+          const levelIdx = Number(val);
+          hls.currentLevel = levelIdx;
+          hls.nextLevel = levelIdx;
         }
-      }
-    }
-
-    // 5. MOUNT YOUTUBE PLAYER SDK
-    function mountYouTubePlayer(videoId) {
-      ytWrapEl.style.display = "block";
-      ytWrapEl.innerHTML = `<div id="yt-player-target"></div>`;
-
-      if (!ytApiReady || !window.YT || !window.YT.Player) {
-        pendingYtVideoId = videoId;
+        showNotice(`Kualitas diubah ke ${label}`, 1800);
         return;
       }
 
-      const startSec = getTargetElapsedSeconds();
+      // B. YouTube -> Kirim perintah API + reload dengan vq agar langsung turun/naik resolusi
+      if (currentMediaInfo.platform === "youtube") {
+        sendYouTubeCommand("setPlaybackQualityRange", [val === "auto" ? "small" : val, val === "auto" ? "highres" : val]);
+        sendYouTubeCommand("setPlaybackQuality", [val === "auto" ? "default" : val]);
+        iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, val, ccEnabled);
+        showNotice(`Kualitas YouTube: ${label}`, 1800);
+        return;
+      }
 
-      ytPlayer = new YT.Player("yt-player-target", {
-        videoId: videoId,
-        playerVars: {
-          autoplay: 1,
-          mute: 1,
-          controls: 0,
-          disablekb: 1,
-          rel: 0,
-          playsinline: 1,
-          start: startSec,
-          origin: window.location.origin
-        },
-        events: {
-          onReady: (e) => {
-            e.target.mute();
-            e.target.playVideo();
-            if (selectedQualityCode !== "auto") {
-              applyQualityToActivePlayer(selectedQualityCode);
-            }
-          },
-          onStateChange: (e) => {
-            // Saat video mulai play, terapkan ulang kualitas pilihan user
-            if (e.data === YT.PlayerState.PLAYING && selectedQualityCode !== "auto") {
-              applyQualityToActivePlayer(selectedQualityCode);
-            }
-          }
-        }
-      });
+      // C. Twitch -> Reload parameter kualitas
+      if (currentMediaInfo.platform === "twitch_chan" || currentMediaInfo.platform === "twitch_vod") {
+        iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, val, ccEnabled);
+        showNotice(`Kualitas Twitch: ${label}`, 1800);
+      }
     }
 
-    // 6. MOUNT TWITCH PLAYER SDK (100% Autoplay Muted + Kontrol Kualitas)
-    function mountTwitchPlayer(media) {
-      twitchWrapEl.style.display = "block";
-      twitchWrapEl.innerHTML = "";
+    function setDefaultQualityOptions() {
+      selectedQualityValue = "auto";
+      qualityBtnEl.textContent = "⚙ Auto";
+      buildQualityMenuOptions([
+        { value: "auto", label: "Otomatis" },
+        { value: "hd1080", label: "1080p", badge: "FHD" },
+        { value: "hd720", label: "720p", badge: "HD" },
+        { value: "large", label: "480p" },
+        { value: "medium", label: "360p" }
+      ]);
+    }
 
+    // 5. HELPER YOUTUBE & URL BUILDER
+    function sendYouTubeCommand(func, args = []) {
+      if (!iframeEl || !iframeEl.contentWindow) return;
+      iframeEl.contentWindow.postMessage(JSON.stringify({
+        event: "command",
+        func: func,
+        args: args
+      }), "*");
+    }
+
+    function buildIframeUrl(media, muted, qCode = "auto", ccOn = false) {
       const host = window.location.hostname || "localhost";
-      const options = {
-        width: "100%",
-        height: "100%",
-        parent: [host],
-        autoplay: true,
-        muted: true,
-        controls: false
-      };
+      const elapsedSec = getTargetElapsedSeconds();
 
+      if (media.platform === "youtube") {
+        const startParam = elapsedSec > 0 ? `&start=${elapsedSec}` : "";
+        const vqParam = qCode !== "auto" ? `&vq=${qCode}` : "";
+        const ccParam = ccOn ? `&cc_load_policy=1&cc_lang_pref=id&hl=id` : "";
+        return `https://www.youtube.com/embed/${media.videoId}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&disablekb=1&rel=0&playsinline=1&enablejsapi=1${startParam}${vqParam}${ccParam}`;
+      }
+      if (media.platform === "twitch_vod") {
+        const h = Math.floor(elapsedSec / 3600);
+        const m = Math.floor((elapsedSec % 3600) / 60);
+        const s = elapsedSec % 60;
+        const qMap = { auto: "chunked", hd1080: "1080p60", hd720: "720p60", large: "480p30", medium: "360p30" };
+        return `https://player.twitch.tv/?video=${media.videoId}&parent=${host}&autoplay=true&muted=${muted}&controls=false&quality=${qMap[qCode] || "chunked"}&time=${h}h${m}m${s}s`;
+      }
       if (media.platform === "twitch_chan") {
-        options.channel = media.channel;
-      } else {
-        options.video = media.videoId;
-        const sec = getTargetElapsedSeconds();
-        const h = Math.floor(sec / 3600);
-        const m = Math.floor((sec % 3600) / 60);
-        const s = sec % 60;
-        options.time = `${h}h${m}m${s}s`;
+        const qMap = { auto: "chunked", hd1080: "1080p60", hd720: "720p60", large: "480p30", medium: "360p30" };
+        return `https://player.twitch.tv/?channel=${media.channel}&parent=${host}&autoplay=true&muted=${muted}&controls=false&quality=${qMap[qCode] || "chunked"}`;
       }
-
-      if (window.Twitch && window.Twitch.Player) {
-        twitchPlayer = new Twitch.Player("twitch-mount-wrap", options);
-        twitchPlayer.addEventListener(Twitch.Player.READY, () => {
-          twitchPlayer.setMuted(true);
-          twitchPlayer.play();
-          if (selectedQualityCode !== "auto") {
-            applyQualityToActivePlayer(selectedQualityCode);
-          }
-        });
-      }
+      return media.rawUrl;
     }
 
-    // 7. UNIVERSAL LINK RESOLVER
+    // 6. UNIVERSAL LINK RESOLVER (Mendukung semua format .m3u8 berparameter & halaman web)
     function resolveMediaSource(rawUrl, forcedType) {
       const url = rawUrl.trim();
 
+      // A. YouTube
       const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
       if (ytMatch && ytMatch[1]) {
-        return { mode: "yt_sdk", platform: "youtube", videoId: ytMatch[1] };
+        return { mode: "iframe", platform: "youtube", cropped: true, videoId: ytMatch[1], rawUrl: url };
       }
 
+      // B. Twitch Video VOD
       const twitchVod = url.match(/twitch\.tv\/videos\/(\d+)/);
       if (twitchVod && twitchVod[1]) {
-        return { mode: "twitch_sdk", platform: "twitch_vod", videoId: twitchVod[1] };
+        return { mode: "iframe", platform: "twitch_vod", cropped: true, videoId: twitchVod[1], rawUrl: url };
       }
 
+      // C. Twitch Channel Live
       const twitchChan = url.match(/(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)(?:\/)?(?:\?.*)?$/);
       if (twitchChan && twitchChan[1] && twitchChan[1].toLowerCase() !== "directory") {
-        return { mode: "twitch_sdk", platform: "twitch_chan", channel: twitchChan[1] };
+        return { mode: "iframe", platform: "twitch_chan", cropped: true, channel: twitchChan[1], rawUrl: url };
       }
 
+      // D. Google Drive Video
       const gdriveMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
       if (gdriveMatch && gdriveMatch[1]) {
-        return { mode: "generic_iframe", src: `https://drive.google.com/file/d/${gdriveMatch[1]}/preview` };
+        return { mode: "iframe", platform: "gdrive", cropped: false, rawUrl: `https://drive.google.com/file/d/${gdriveMatch[1]}/preview` };
       }
 
-      if (forcedType === "hls" || url.toLowerCase().includes(".m3u8")) {
+      // E. HLS (.m3u8 — termasuk URL dengan query string seperti index.m3u8?p atau /hls/.../index.m3u8)
+      if (forcedType === "hls" || /\.m3u8(\?|\/|$)/i.test(url)) {
         return { mode: "hls", src: url };
       }
 
+      // F. Video Langsung (.mp4 / .webm)
       if (forcedType === "mp4" || /\.(mp4|webm|ogg)(\?.*)?$/i.test(url)) {
         return { mode: "mp4", src: url };
       }
 
-      return { mode: "generic_iframe", src: url };
+      // G. Halaman Web / Embed Player Eksternal (seperti fanversecast.com)
+      return { mode: "iframe", platform: "web_embed", cropped: false, rawUrl: url };
     }
 
-    // 8. KONTROL SUARA & SINKRONISASI DETIK
+    // 7. KONTROL SUARA & SINKRONISASI DETIK
     function activateAudioAndPlay() {
       isMuted = false;
       unmuteBannerEl.classList.add("hidden");
@@ -1219,16 +1340,15 @@
 
       if (!currentMediaInfo) return;
 
-      if (currentMediaInfo.mode === "yt_sdk" && ytPlayer) {
-        if (typeof ytPlayer.unMute === "function") ytPlayer.unMute();
-        if (typeof ytPlayer.setVolume === "function") ytPlayer.setVolume(100);
-        if (typeof ytPlayer.playVideo === "function") ytPlayer.playVideo();
-      } else if (currentMediaInfo.mode === "twitch_sdk" && twitchPlayer) {
-        twitchPlayer.setMuted(false);
-        twitchPlayer.setVolume(1.0);
-        twitchPlayer.play();
+      if (currentMediaInfo.platform === "youtube") {
+        sendYouTubeCommand("unMute");
+        sendYouTubeCommand("setVolume", [100]);
+        sendYouTubeCommand("playVideo");
+      } else if (currentMediaInfo.platform === "twitch_chan" || currentMediaInfo.platform === "twitch_vod") {
+        iframeEl.src = buildIframeUrl(currentMediaInfo, false, selectedQualityValue, ccEnabled);
       } else if (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls") {
         videoEl.muted = false;
+        videoEl.volume = 1.0;
         videoEl.play().catch(() => {});
       }
 
@@ -1241,10 +1361,10 @@
 
       if (isMuted) {
         soundToggleBtn.textContent = "🔇 Suara Mati";
-        if (currentMediaInfo.mode === "yt_sdk" && ytPlayer && typeof ytPlayer.mute === "function") {
-          ytPlayer.mute();
-        } else if (currentMediaInfo.mode === "twitch_sdk" && twitchPlayer) {
-          twitchPlayer.setMuted(true);
+        if (currentMediaInfo.platform === "youtube") {
+          sendYouTubeCommand("mute");
+        } else if (currentMediaInfo.platform === "twitch_chan" || currentMediaInfo.platform === "twitch_vod") {
+          iframeEl.src = buildIframeUrl(currentMediaInfo, true, selectedQualityValue, ccEnabled);
         } else {
           videoEl.muted = true;
         }
@@ -1257,23 +1377,16 @@
       if (!currentData || currentData.status !== "LIVE" || !currentMediaInfo) return;
       const targetSec = getTargetElapsedSeconds();
 
-      if (currentMediaInfo.mode === "yt_sdk" && ytPlayer && typeof ytPlayer.seekTo === "function") {
-        const dur = ytPlayer.getDuration ? ytPlayer.getDuration() : 0;
-        if (dur > 0 && isFinite(dur)) {
-          ytPlayer.seekTo(Math.min(targetSec, Math.max(0, dur - 1)), true);
-        } else {
-          // Untuk YouTube Live murni, lompat ke ujung live terbaru
-          ytPlayer.seekTo(999999, true);
-        }
-        if (typeof ytPlayer.playVideo === "function") ytPlayer.playVideo();
-      } else if (currentMediaInfo.mode === "twitch_sdk" && twitchPlayer) {
-        if (currentMediaInfo.platform === "twitch_vod") {
-          twitchPlayer.seek(targetSec);
-        }
-        twitchPlayer.play();
+      if (currentMediaInfo.platform === "youtube") {
+        sendYouTubeCommand("seekTo", [targetSec, true]);
+        sendYouTubeCommand("playVideo");
+      } else if (currentMediaInfo.platform === "twitch_vod" || currentMediaInfo.platform === "twitch_chan") {
+        iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, selectedQualityValue, ccEnabled);
       } else if (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls") {
         if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
           videoEl.currentTime = targetSec;
+        } else if (hls && hls.liveSyncPosition) {
+          videoEl.currentTime = hls.liveSyncPosition;
         }
         videoEl.play().catch(() => {});
       }
@@ -1287,7 +1400,7 @@
       }
     }
 
-    // 9. REAL-TIME DATA SIARAN & THUMBNAIL
+    // 8. REAL-TIME DATA SIARAN & THUMBNAIL
     streamRef.on("value", (snap) => {
       const data = snap.val();
 
@@ -1307,12 +1420,23 @@
       const prevType = currentData ? currentData.streamType : "";
       const prevStatus = currentData ? currentData.status : "";
       const prevStartedAt = currentData ? currentData.startedAt : 0;
+      const prevCaption = currentData ? currentData.liveCaption : "";
       currentData = data;
 
       document.getElementById("event-name").textContent = data.eventName || "ZY STREAM LIVE";
       document.getElementById("stream-title").textContent = data.title || "Live Broadcast";
       document.getElementById("stream-desc").textContent = data.description || "Selamat menyaksikan siaran langsung.";
       document.title = `${data.title || "Live"} — ZY STREAM`;
+
+      // Tampilkan subtitle/terjemahan live dari Admin jika ada perubahan
+      if (data.liveCaption && data.liveCaption !== prevCaption) {
+        if (!ccEnabled) {
+          ccEnabled = true;
+          ccBtn.classList.add("cc-active");
+          ccBtn.textContent = "💬 CC Indonesia: ON";
+        }
+        renderSubtitleLine(data.liveCaption, "SUBTITLE LIVE • INDONESIA");
+      }
 
       if (data.thumbnailUrl && data.thumbnailUrl.trim() !== "") {
         coverEl.style.backgroundImage = `url('${data.thumbnailUrl.trim()}')`;
@@ -1354,8 +1478,11 @@
       }
     }
 
+    // 9. PEMUTAR STREAM ANTI-BLACKSCREEN (HLS + Fallback + Iframe)
     function playStream(rawUrl, type) {
       stopStream();
+      setDefaultQualityOptions();
+
       const media = resolveMediaSource(rawUrl, type);
       currentMediaInfo = media;
 
@@ -1364,29 +1491,96 @@
       unmuteBannerEl.classList.remove("hidden");
       soundToggleBtn.textContent = "🔇 Suara Mati";
 
-      if (media.mode === "yt_sdk") {
-        mountYouTubePlayer(media.videoId);
-      } else if (media.mode === "twitch_sdk") {
-        mountTwitchPlayer(media);
+      if (media.mode === "iframe") {
+        videoEl.style.display = "none";
+        iframeEl.style.display = "block";
+        iframeEl.classList.toggle("cropped-embed", Boolean(media.cropped));
+        iframeEl.src = buildIframeUrl(media, true, selectedQualityValue, ccEnabled);
+
+        iframeEl.onload = () => {
+          showNotice("");
+          if (media.platform === "youtube") {
+            sendYouTubeCommand("playVideo");
+          }
+        };
       } else if (media.mode === "hls") {
+        iframeEl.style.display = "none";
         videoEl.style.display = "block";
         videoEl.muted = true;
+        showNotice("Menghubungkan aliran HLS (.m3u8)...");
 
         if (Hls.isSupported()) {
-          hls = new Hls({ lowLatencyMode: true });
+          hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+            backBufferLength: 60,
+            maxBufferLength: 30,
+            fragLoadingMaxRetry: 5,
+            manifestLoadingMaxRetry: 4,
+            xhrSetup: function (xhr) {
+              xhr.withCredentials = false;
+            }
+          });
+
           hls.loadSource(media.src);
           hls.attachMedia(videoEl);
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+
+          hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+            showNotice("");
+            // Bangun menu kualitas secara dinamis dari manifest .m3u8 yang asli!
+            if (data.levels && data.levels.length > 0) {
+              const dynamicOpts = [{ value: "auto", label: "Otomatis" }];
+              // Urutkan dari resolusi tertinggi ke terendah
+              const sorted = data.levels
+                .map((lvl, idx) => ({
+                  value: String(idx),
+                  height: lvl.height || 0,
+                  bitrate: lvl.bitrate || 0
+                }))
+                .sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
+
+              sorted.forEach((item) => {
+                const label = item.height > 0 ? `${item.height}p` : `${Math.round(item.bitrate / 1000)} kbps`;
+                const badge = item.height >= 1080 ? "FHD" : item.height >= 720 ? "HD" : "";
+                dynamicOpts.push({ value: item.value, label, badge });
+              });
+              buildQualityMenuOptions(dynamicOpts);
+            }
+
             const targetSec = getTargetElapsedSeconds();
             if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
               videoEl.currentTime = targetSec;
             }
-            applyQualityToActivePlayer(selectedQualityCode);
             videoEl.play().catch(() => {});
+            bindVideoNativeTextTracks();
+          });
+
+          hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
+            bindVideoNativeTextTracks();
+          });
+
+          // Penanganan error & fallback otomatis jika CDN memblokir XHR CORS
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            if (data.fatal) {
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                // Coba fallback ke native <video> (sering lolos pembatasan CORS XHR!)
+                hls.destroy();
+                hls = null;
+                videoEl.src = media.src;
+                videoEl.play().then(() => {
+                  showNotice("");
+                }).catch(() => {
+                  showNotice("Link .m3u8 kadaluarsa atau diblokir oleh server sumbernya.");
+                });
+              } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                hls.recoverMediaError();
+              }
+            }
           });
         } else if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
           videoEl.src = media.src;
           videoEl.onloadedmetadata = () => {
+            showNotice("");
             const targetSec = getTargetElapsedSeconds();
             if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
               videoEl.currentTime = targetSec;
@@ -1394,20 +1588,20 @@
             videoEl.play().catch(() => {});
           };
         }
-      } else if (media.mode === "mp4") {
+      } else {
+        iframeEl.style.display = "none";
         videoEl.style.display = "block";
         videoEl.muted = true;
         videoEl.src = media.src;
         videoEl.onloadedmetadata = () => {
+          showNotice("");
           const targetSec = getTargetElapsedSeconds();
           if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
             videoEl.currentTime = targetSec;
           }
           videoEl.play().catch(() => {});
+          bindVideoNativeTextTracks();
         };
-      } else {
-        genericIframeEl.style.display = "block";
-        genericIframeEl.src = media.src;
       }
     }
 
@@ -1416,28 +1610,15 @@
         hls.destroy();
         hls = null;
       }
-      if (ytPlayer && typeof ytPlayer.destroy === "function") {
-        try { ytPlayer.destroy(); } catch (e) {}
-      }
-      ytPlayer = null;
-      twitchPlayer = null;
-      pendingYtVideoId = null;
       currentMediaInfo = null;
-
+      showNotice("");
       videoEl.pause();
       videoEl.removeAttribute("src");
       videoEl.load();
       videoEl.style.display = "none";
-
-      ytWrapEl.innerHTML = `<div id="yt-player-target"></div>`;
-      ytWrapEl.style.display = "none";
-
-      twitchWrapEl.innerHTML = "";
-      twitchWrapEl.style.display = "none";
-
-      genericIframeEl.src = "";
-      genericIframeEl.style.display = "none";
-
+      iframeEl.onload = null;
+      iframeEl.src = "";
+      iframeEl.style.display = "none";
       shieldEl.classList.add("hidden");
     }
 
