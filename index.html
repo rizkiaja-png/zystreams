@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- HLS.js & YouTube IFrame API -->
+  <!-- HLS.js & YouTube IFrame API (Fallback) -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script src="https://www.youtube.com/iframe_api"></script>
 
@@ -193,7 +193,7 @@
       height: 112%;
     }
 
-    /* YOUTUBE API CONTAINER */
+    /* YOUTUBE API FALLBACK CONTAINER */
     .yt-api-container {
       display: none;
       position: absolute;
@@ -900,10 +900,10 @@
           </div>
         </div>
 
-        <!-- PEMUTAR HLS / MP4 -->
+        <!-- PEMUTAR HLS / MP4 / YOUTUBE DIRECT BEBAS IKLAN -->
         <video id="video-player" muted playsinline crossorigin="anonymous" style="display:none;" oncontextmenu="return false;"></video>
 
-        <!-- PEMUTAR YOUTUBE API (BEBAS ERROR 153 + AUTO-NEXT K-POP) -->
+        <!-- PEMUTAR YOUTUBE API (CADANGAN FALLBACK) -->
         <div class="yt-api-container" id="yt-api-container">
           <div id="yt-player"></div>
         </div>
@@ -1018,7 +1018,7 @@
     let lastTranslatedSource = "";
     let subClearTimer = null;
 
-    // ANTREAN AUTO-NEXT LAGU / MV K-POP (TANPA STOP)
+    // ANTREAN AUTO-NEXT LAGU / MV K-POP (TANPA STOP & BEBAS IKLAN)
     let kpopQueue = [];
     let kpopQueueIndex = 0;
     const DEFAULT_KPOP_FALLBACK = [
@@ -1029,6 +1029,14 @@
       "Os_heh8vPfs", // IVE - I AM
       "fE2h3lGlOsk", // ITZY - WANNABE
       "TQTlCHxyuu8"  // Stray Kids - God's Menu
+    ];
+
+    // DAFTAR SERVER EKSTRAKTOR STREAM YOUTUBE BEBAS IKLAN (PIPED API)
+    const PIPED_INSTANCES = [
+      "https://pipedapi.kavin.rocks",
+      "https://pipedapi.tokhmi.xyz",
+      "https://pipedapi.moomoo.me",
+      "https://api.piped.yt"
     ];
 
     window.onYouTubeIframeAPIReady = function () {
@@ -1075,7 +1083,7 @@
       const targetSec = getTargetElapsedSeconds();
       syncClockEl.textContent = formatTime(targetSec);
 
-      if (currentMediaInfo && (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls")) {
+      if (currentMediaInfo && (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls") && currentMediaInfo.platform !== "youtube_direct") {
         if (!videoEl.paused && videoEl.readyState >= 2 && isFinite(videoEl.duration)) {
           const clampedTarget = Math.min(targetSec, Math.max(0, videoEl.duration - 1));
           if (Math.abs(videoEl.currentTime - clampedTarget) > 2.5) {
@@ -1098,7 +1106,7 @@
       document.getElementById("viewer-count").textContent = snap.numChildren().toLocaleString("id-ID");
     });
 
-    // 3. YOUTUBE API & AUTO-NEXT K-POP ENGINE
+    // 3. YOUTUBE DIRECT STREAM BEBAS IKLAN + AUTO-NEXT K-POP ENGINE
     function extractYouTubeId(url) {
       const m = url.trim().match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
       return m ? m[1] : null;
@@ -1117,6 +1125,34 @@
       ytPlayer.setOption("captions", "track", { languageCode: "id" });
     }
 
+    async function fetchDirectYouTubeStream(videoId) {
+      for (const base of PIPED_INSTANCES) {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 4500);
+          const res = await fetch(`${base}/streams/${videoId}`, { signal: controller.signal });
+          clearTimeout(timer);
+
+          if (!res.ok) continue;
+          const data = await res.json();
+
+          if (data.hls) {
+            return { mode: "hls", src: data.hls };
+          }
+
+          if (Array.isArray(data.videoStreams)) {
+            const muxed = data.videoStreams
+              .filter((s) => !s.videoOnly && s.url)
+              .sort((a, b) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0));
+            if (muxed.length > 0) {
+              return { mode: "mp4", src: muxed[0].url };
+            }
+          }
+        } catch (e) {}
+      }
+      return null;
+    }
+
     function playNextKpopVideo() {
       if (!kpopQueue.length) {
         kpopQueue = [...DEFAULT_KPOP_FALLBACK];
@@ -1124,22 +1160,43 @@
       kpopQueueIndex = (kpopQueueIndex + 1) % kpopQueue.length;
       const nextId = kpopQueue[kpopQueueIndex];
 
-      if (ytPlayer && typeof ytPlayer.loadVideoById === "function") {
-        ytPlayer.loadVideoById({ videoId: nextId, startSeconds: 0 });
-        showNotice("Memutar lagu / MV K-Pop berikutnya...", 2000);
+      showNotice("Memutar lagu / MV K-Pop berikutnya (Bebas Iklan)...", 2200);
+      playYouTubeAdFree(nextId, true);
+    }
+
+    async function playYouTubeAdFree(videoId, isAutoNext = false) {
+      showNotice("Memuat stream YouTube bebas iklan...");
+
+      if (!isAutoNext) {
+        const adminList = (currentData && currentData.kpopPlaylist)
+          ? currentData.kpopPlaylist.split(/[\n,]+/).map(extractYouTubeId).filter(Boolean)
+          : [];
+        const merged = [videoId, ...adminList, ...DEFAULT_KPOP_FALLBACK];
+        kpopQueue = [...new Set(merged)];
+        kpopQueueIndex = 0;
+      }
+
+      const directStream = await fetchDirectYouTubeStream(videoId);
+
+      if (directStream) {
+        ytContainerEl.style.display = "none";
+        iframeEl.style.display = "none";
+        currentMediaInfo = { ...directStream, platform: "youtube_direct" };
+
+        if (directStream.mode === "hls") {
+          playHlsDirect(directStream.src, isAutoNext);
+        } else {
+          playMp4Direct(directStream.src, isAutoNext);
+        }
+      } else {
+        showNotice("Menggunakan mode pemutar cadangan...", 1800);
+        currentMediaInfo = { mode: "youtube", platform: "youtube", videoId };
+        mountYouTubePlayer(videoId, isAutoNext ? 0 : getTargetElapsedSeconds());
       }
     }
 
     function mountYouTubePlayer(firstVideoId, startSec) {
       ytContainerEl.style.display = "block";
-
-      const adminList = (currentData && currentData.kpopPlaylist)
-        ? currentData.kpopPlaylist.split(/[\n,]+/).map(extractYouTubeId).filter(Boolean)
-        : [];
-
-      const merged = [firstVideoId, ...adminList, ...DEFAULT_KPOP_FALLBACK];
-      kpopQueue = [...new Set(merged)];
-      kpopQueueIndex = 0;
 
       const initPlayer = () => {
         if (ytPlayer && typeof ytPlayer.destroy === "function") {
@@ -1173,13 +1230,11 @@
               if (ccEnabled) forceYouTubeIndonesianCaptions();
             },
             onStateChange: (e) => {
-              // YT.PlayerState.ENDED === 0 -> Otomatis lanjut ke MV K-Pop berikutnya!
               if (e.data === 0) {
                 playNextKpopVideo();
               }
             },
             onError: () => {
-              // Jika video tidak mengizinkan embed, otomatis skip ke MV K-Pop berikutnya
               showNotice("Video tidak bisa di-embed, lanjut ke MV K-Pop berikutnya...", 2200);
               setTimeout(playNextKpopVideo, 1200);
             }
@@ -1193,6 +1248,13 @@
         setTimeout(initPlayer, 650);
       }
     }
+
+    // Event saat video direct bebas iklan selesai -> otomatis lanjut ke K-Pop berikutnya
+    videoEl.onended = () => {
+      if (currentMediaInfo && currentMediaInfo.platform === "youtube_direct") {
+        playNextKpopVideo();
+      }
+    };
 
     // 4. SUBTITLE INDONESIA (ANDROID / IOS / PC)
     async function translateToIndonesian(text) {
@@ -1269,7 +1331,7 @@
       }
     }
 
-    // 5. MENU KUALITAS VIDEO DINAMIS (HLS RTMP, YouTube, Twitch)
+    // 5. MENU KUALITAS VIDEO DINAMIS (HLS RTMP, YouTube Bebas Iklan, Twitch)
     function toggleQualityMenu(e) {
       e.stopPropagation();
       const isOpen = qualityMenuEl.classList.toggle("open");
@@ -1364,7 +1426,7 @@
       return media.rawUrl;
     }
 
-    // 6. UNIVERSAL LINK RESOLVER (YOUTUBE, TWITCH, GDRIVE, HLS, MP4, WEB IFRAME)
+    // 6. UNIVERSAL LINK RESOLVER (YOUTUBE BEBAS IKLAN, TWITCH, GDRIVE, HLS, MP4, WEB IFRAME)
     function resolveMediaSource(rawUrl, forcedType) {
       const url = rawUrl.trim();
 
@@ -1396,7 +1458,6 @@
         return { mode: "mp4", src: url };
       }
 
-      // Semua web embed eksternal (fanversecast.fans, dll) otomatis masuk ke iframe universal
       return { mode: "iframe", platform: "web_embed", cropped: false, rawUrl: url };
     }
 
@@ -1420,7 +1481,9 @@
         videoEl.play().catch(() => {});
       }
 
-      syncToLiveNow();
+      if (currentMediaInfo.platform !== "youtube_direct") {
+        syncToLiveNow();
+      }
     }
 
     function toggleSound() {
@@ -1547,7 +1610,119 @@
       }
     }
 
-    // 9. PEMUTAR STREAM UNIVERSAL (YOUTUBE API + IFRAME EMBED + HLS RTMP + MP4)
+    // 9. PEMUTAR HLS & MP4 DIRECT (DIPAKAI OLEH RTMP & YOUTUBE BEBAS IKLAN)
+    function playHlsDirect(hlsUrl, skipServerSync = false) {
+      if (hls) {
+        hls.destroy();
+        hls = null;
+      }
+      iframeEl.style.display = "none";
+      ytContainerEl.style.display = "none";
+      videoEl.style.display = "block";
+      videoEl.muted = isMuted;
+      showNotice("Menghubungkan aliran siaran...");
+
+      if (Hls.isSupported()) {
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          enableCEA708Captions: true,
+          enableWebVTT: true,
+          backBufferLength: 60,
+          maxBufferLength: 30,
+          fragLoadingMaxRetry: 8,
+          manifestLoadingMaxRetry: 8,
+          manifestLoadingRetryDelay: 2000,
+          xhrSetup: function (xhr) {
+            xhr.withCredentials = false;
+          }
+        });
+
+        hls.loadSource(hlsUrl);
+        hls.attachMedia(videoEl);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+          showNotice("");
+          if (data.levels && data.levels.length > 0) {
+            const dynamicOpts = [{ value: "auto", label: "Otomatis" }];
+            const sorted = data.levels
+              .map((lvl, idx) => ({
+                value: String(idx),
+                height: lvl.height || 0,
+                bitrate: lvl.bitrate || 0
+              }))
+              .sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
+
+            sorted.forEach((item) => {
+              const label = item.height > 0 ? `${item.height}p` : `${Math.round(item.bitrate / 1000)} kbps`;
+              const badge = item.height >= 1080 ? "FHD" : item.height >= 720 ? "HD" : "";
+              dynamicOpts.push({ value: item.value, label, badge });
+            });
+            buildQualityMenuOptions(dynamicOpts);
+          }
+
+          if (!skipServerSync) {
+            const targetSec = getTargetElapsedSeconds();
+            if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
+              videoEl.currentTime = targetSec;
+            }
+          }
+          videoEl.play().catch(() => {});
+          bindVideoNativeTextTracks();
+        });
+
+        hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
+          if (hls.subtitleTracks && hls.subtitleTracks.length > 0) {
+            hls.subtitleTrack = 0;
+          }
+          bindVideoNativeTextTracks();
+        });
+
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              if (currentMediaInfo && currentMediaInfo.platform === "youtube_direct") {
+                playNextKpopVideo();
+              } else {
+                showNotice("Menunggu sinyal RTMP masuk dari OBS...");
+                setTimeout(() => {
+                  if (hls) hls.loadSource(hlsUrl);
+                }, 3000);
+              }
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+              hls.recoverMediaError();
+            }
+          }
+        });
+      } else if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+        videoEl.src = hlsUrl;
+        videoEl.onloadedmetadata = () => {
+          showNotice("");
+          videoEl.play().catch(() => {});
+        };
+      }
+    }
+
+    function playMp4Direct(mp4Url, skipServerSync = false) {
+      iframeEl.style.display = "none";
+      ytContainerEl.style.display = "none";
+      videoEl.style.display = "block";
+      videoEl.muted = isMuted;
+      videoEl.src = mp4Url;
+      videoEl.onloadedmetadata = () => {
+        showNotice("");
+        if (!skipServerSync) {
+          const targetSec = getTargetElapsedSeconds();
+          if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
+            videoEl.currentTime = targetSec;
+          }
+        }
+        videoEl.play().catch(() => {});
+        bindVideoNativeTextTracks();
+      };
+    }
+
+    // 10. PEMUTAR STREAM UNIVERSAL (YOUTUBE BEBAS IKLAN + IFRAME EMBED + HLS RTMP + MP4)
     function playStream(rawUrl, type) {
       stopStream();
       setDefaultQualityOptions();
@@ -1563,7 +1738,7 @@
       if (media.mode === "youtube") {
         videoEl.style.display = "none";
         iframeEl.style.display = "none";
-        mountYouTubePlayer(media.videoId, getTargetElapsedSeconds());
+        playYouTubeAdFree(media.videoId, false);
       } else if (media.mode === "iframe") {
         videoEl.style.display = "none";
         ytContainerEl.style.display = "none";
@@ -1575,100 +1750,9 @@
           showNotice("");
         };
       } else if (media.mode === "hls") {
-        iframeEl.style.display = "none";
-        ytContainerEl.style.display = "none";
-        videoEl.style.display = "block";
-        videoEl.muted = true;
-        showNotice("Menghubungkan aliran siaran...");
-
-        if (Hls.isSupported()) {
-          hls = new Hls({
-            enableWorker: true,
-            lowLatencyMode: true,
-            enableCEA708Captions: true,
-            enableWebVTT: true,
-            backBufferLength: 60,
-            maxBufferLength: 30,
-            fragLoadingMaxRetry: 8,
-            manifestLoadingMaxRetry: 8,
-            manifestLoadingRetryDelay: 2000,
-            xhrSetup: function (xhr) {
-              xhr.withCredentials = false;
-            }
-          });
-
-          hls.loadSource(media.src);
-          hls.attachMedia(videoEl);
-
-          hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-            showNotice("");
-            if (data.levels && data.levels.length > 0) {
-              const dynamicOpts = [{ value: "auto", label: "Otomatis" }];
-              const sorted = data.levels
-                .map((lvl, idx) => ({
-                  value: String(idx),
-                  height: lvl.height || 0,
-                  bitrate: lvl.bitrate || 0
-                }))
-                .sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
-
-              sorted.forEach((item) => {
-                const label = item.height > 0 ? `${item.height}p` : `${Math.round(item.bitrate / 1000)} kbps`;
-                const badge = item.height >= 1080 ? "FHD" : item.height >= 720 ? "HD" : "";
-                dynamicOpts.push({ value: item.value, label, badge });
-              });
-              buildQualityMenuOptions(dynamicOpts);
-            }
-
-            const targetSec = getTargetElapsedSeconds();
-            if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
-              videoEl.currentTime = targetSec;
-            }
-            videoEl.play().catch(() => {});
-            bindVideoNativeTextTracks();
-          });
-
-          hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
-            if (hls.subtitleTracks && hls.subtitleTracks.length > 0) {
-              hls.subtitleTrack = 0;
-            }
-            bindVideoNativeTextTracks();
-          });
-
-          hls.on(Hls.Events.ERROR, (event, data) => {
-            if (data.fatal) {
-              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                showNotice("Menunggu sinyal RTMP masuk dari OBS...");
-                setTimeout(() => {
-                  if (hls) hls.loadSource(media.src);
-                }, 3000);
-              } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                hls.recoverMediaError();
-              }
-            }
-          });
-        } else if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
-          videoEl.src = media.src;
-          videoEl.onloadedmetadata = () => {
-            showNotice("");
-            videoEl.play().catch(() => {});
-          };
-        }
+        playHlsDirect(media.src, false);
       } else {
-        iframeEl.style.display = "none";
-        ytContainerEl.style.display = "none";
-        videoEl.style.display = "block";
-        videoEl.muted = true;
-        videoEl.src = media.src;
-        videoEl.onloadedmetadata = () => {
-          showNotice("");
-          const targetSec = getTargetElapsedSeconds();
-          if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
-            videoEl.currentTime = targetSec;
-          }
-          videoEl.play().catch(() => {});
-          bindVideoNativeTextTracks();
-        };
+        playMp4Direct(media.src, false);
       }
     }
 
@@ -1704,7 +1788,7 @@
       });
     }
 
-    // 10. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
+    // 11. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
     const EXPIRE_MS = 2 * 60 * 1000;
     const shownKeys = new Set();
     const avatarColors = ["#e11d48", "#7c3aed", "#2563eb", "#059669", "#d97706", "#db2777"];
