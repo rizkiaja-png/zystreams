@@ -101,6 +101,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 10px;
     }
 
     .form-group { margin-bottom: 14px; }
@@ -156,6 +157,7 @@
       justify-content: center;
       gap: 7px;
       transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
     }
 
     .btn:hover { opacity: 0.92; }
@@ -176,6 +178,7 @@
       display: flex;
       gap: 10px;
       margin-top: 16px;
+      flex-wrap: wrap;
     }
 
     .status-bar .btn { flex: 1; }
@@ -295,7 +298,7 @@
   </header>
 
   <main class="layout">
-    <!-- KOLOM KIRI: STREAM & RTMP GENERATOR -->
+    <!-- KOLOM KIRI: STREAM, RTMP & AUTO-SUBTITLE AUDIO TAB -->
     <div>
       <div class="card">
         <div class="card-title">
@@ -388,26 +391,35 @@
         </div>
       </div>
 
-      <!-- AUTO-SUBTITLE INDONESIA KE SEMUA PENONTON HP/PC -->
+      <!-- AUTO-SUBTITLE INDONESIA MURNI DARI AUDIO TAB (TANPA MIKROFON) -->
       <div class="card">
         <div class="card-title">
-          <span>💬 Auto-Subtitle Bahasa Indonesia (Untuk Penonton Android / iOS / PC)</span>
+          <span>💬 Auto-Subtitle Tab Murni (100% Audio Tab, Tanpa Mic)</span>
           <span id="host-cc-status" style="font-size:0.75rem; color:var(--text-dim);">OFF</span>
+        </div>
+
+        <div class="form-group" style="margin-bottom:10px;">
+          <label style="color:#f5b041;">Groq API Key Gratis (console.groq.com/keys — tersimpan lokal di browser ini saja)</label>
+          <div class="input-copy-group">
+            <input type="password" id="groq-api-key" placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx" onchange="saveGroqKey()" />
+            <button type="button" class="btn btn-secondary" onclick="saveGroqKey(true)">Simpan Key</button>
+          </div>
         </div>
 
         <div class="row-2" style="margin-bottom:10px;">
           <select id="host-source-lang">
-            <option value="ko-KR">Bahasa Asal Audio: Korea (ko-KR)</option>
-            <option value="en-US">Bahasa Asal Audio: Inggris (en-US)</option>
-            <option value="ja-JP">Bahasa Asal Audio: Jepang (ja-JP)</option>
+            <option value="ko">Bahasa Asal Audio: Korea (ko)</option>
+            <option value="en">Bahasa Asal Audio: Inggris (en)</option>
+            <option value="ja">Bahasa Asal Audio: Jepang (ja)</option>
+            <option value="">Deteksi Bahasa Otomatis</option>
           </select>
           <button type="button" class="btn" id="btn-host-auto-cc" onclick="toggleHostAutoSubtitle()">
-            🎙️ Mulai Tangkap Audio Tab
+            🔊 Tangkap Audio Tab (Tanpa Mic)
           </button>
         </div>
 
         <div id="host-cc-preview" style="background:#101015; border:1px solid var(--border-soft); border-radius:10px; padding:12px; font-size:0.82rem; color:var(--text-gray); min-height:48px;">
-          Putar video/stream di tab Chrome PC, lalu klik tombol di atas & centang <strong>"Bagikan audio tab"</strong>. Terjemahan Bahasa Indonesia akan langsung muncul di HP seluruh penonton.
+          Masukkan Groq API Key gratis, klik tombol di atas, lalu pilih tab video & centang <strong>"Bagikan audio tab"</strong>. Sistem hanya merekam suara dari tab tersebut (mikrofon mati total).
         </div>
       </div>
     </div>
@@ -469,6 +481,7 @@
       });
     }
 
+    // 1. GENERATOR RTMP MANDIRI
     function generateCustomRtmpKey() {
       const rand = "zy_" + Math.random().toString(36).substring(2, 10);
       document.getElementById("rtmp-key").value = rand;
@@ -485,6 +498,7 @@
       }
     }
 
+    // 2. FIREBASE LISTENER & SWITCH CHANNEL
     function switchSite(newId) {
       streamRef.off();
       viewersRef.off();
@@ -570,6 +584,7 @@
       });
     }
 
+    // 3. MODERASI LIVE CHAT
     function deleteChat(key) {
       chatRef.child(key).remove();
     }
@@ -594,35 +609,104 @@
       });
     });
 
-    // HOST AUTO-SUBTITLE (KOREA/INGGRIS/JEPANG -> INDONESIA KE SEMUA HP PENONTON)
+    // 4. HOST AUTO-SUBTITLE 100% DARI AUDIO TAB (TANPA MIKROFON VIA GROQ WHISPER)
     let hostCcActive = false;
     let hostTabStream = null;
-    let hostRecognizer = null;
+    let tabAudioOnlyStream = null;
+    let chunkLoopTimer = null;
     let lastSentSource = "";
 
-    async function translateAndBroadcastToViewers(spokenText) {
-      const cleanText = spokenText.trim();
-      if (!cleanText || cleanText === lastSentSource) return;
-      lastSentSource = cleanText;
+    const savedGroqKey = localStorage.getItem("zy_groq_api_key");
+    if (savedGroqKey) {
+      document.getElementById("groq-api-key").value = savedGroqKey;
+    }
 
-      const sourceLang = document.getElementById("host-source-lang").value.split("-")[0];
+    function saveGroqKey(notify = false) {
+      const k = document.getElementById("groq-api-key").value.trim();
+      localStorage.setItem("zy_groq_api_key", k);
+      if (notify) showToast("Groq API Key disimpan di browser ini!");
+    }
+
+    async function transcribeTabAudioChunk(audioBlob) {
+      const groqKey = document.getElementById("groq-api-key").value.trim();
+      const sourceLang = document.getElementById("host-source-lang").value;
       const previewEl = document.getElementById("host-cc-preview");
 
+      if (!groqKey || audioBlob.size < 3000) return;
+
+      const formData = new FormData();
+      formData.append("file", audioBlob, "tab-audio.webm");
+      formData.append("model", "whisper-large-v3-turbo");
+      formData.append("response_format", "json");
+      if (sourceLang) formData.append("language", sourceLang);
+
       try {
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLang}&tl=id&dt=t&q=${encodeURIComponent(cleanText)}`;
-        const res = await fetch(url);
+        const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${groqKey}`
+          },
+          body: formData
+        });
+
         const data = await res.json();
+        const spokenText = (data && data.text) ? data.text.trim() : "";
 
-        if (data && data[0]) {
-          const indonesianText = data[0].map((item) => item[0]).join("");
-          previewEl.innerHTML = `<span style="color:#6e6e80;">[${cleanText}]</span><br><strong style="color:#fff;">🇮🇩 ${indonesianText}</strong>`;
-
-          streamRef.update({
-            liveCaption: indonesianText,
-            captionUpdatedAt: firebase.database.ServerValue.TIMESTAMP
-          });
+        const ignoreHallucinations = ["Thank you.", "Thanks for watching.", "MBC", "SBS", "KBS", "Subtitles by"];
+        if (!spokenText || spokenText.length < 2 || ignoreHallucinations.some((h) => spokenText.includes(h))) {
+          return;
         }
-      } catch (err) {}
+
+        if (spokenText === lastSentSource) return;
+        lastSentSource = spokenText;
+
+        const tlParam = sourceLang || "auto";
+        const trUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${tlParam}&tl=id&dt=t&q=${encodeURIComponent(spokenText)}`;
+        const trRes = await fetch(trUrl);
+        const trData = await trRes.json();
+
+        const indonesianText = (trData && trData[0])
+          ? trData[0].map((item) => item[0]).join("")
+          : spokenText;
+
+        previewEl.innerHTML = `<span style="color:#6e6e80;">[Audio Tab: ${spokenText}]</span><br><strong style="color:#fff;">🇮🇩 ${indonesianText}</strong>`;
+
+        streamRef.update({
+          liveCaption: indonesianText,
+          captionUpdatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+      } catch (err) {
+        previewEl.textContent = "Menunggu potongan audio tab berikutnya...";
+      }
+    }
+
+    function recordSingleTabChunk() {
+      if (!hostCcActive || !tabAudioOnlyStream) return;
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "audio/webm";
+
+      const recorder = new MediaRecorder(tabAudioOnlyStream, { mimeType });
+      const chunks = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        if (chunks.length > 0 && hostCcActive) {
+          const fullBlob = new Blob(chunks, { type: mimeType });
+          transcribeTabAudioChunk(fullBlob);
+        }
+      };
+
+      recorder.start();
+      setTimeout(() => {
+        if (recorder.state !== "inactive") {
+          recorder.stop();
+        }
+      }, 4200);
     }
 
     async function toggleHostAutoSubtitle() {
@@ -632,70 +716,63 @@
 
       if (hostCcActive) {
         hostCcActive = false;
-        btn.textContent = "🎙️ Mulai Tangkap Audio Tab";
+        clearInterval(chunkLoopTimer);
+        btn.textContent = "🔊 Tangkap Audio Tab (Tanpa Mic)";
         btn.style.background = "#ff2e63";
         statusEl.textContent = "OFF";
         statusEl.style.color = "#6e6e80";
 
-        if (hostRecognizer) {
-          try { hostRecognizer.onend = null; hostRecognizer.stop(); } catch (e) {}
-          hostRecognizer = null;
-        }
         if (hostTabStream) {
           hostTabStream.getTracks().forEach((t) => t.stop());
           hostTabStream = null;
         }
+        tabAudioOnlyStream = null;
         streamRef.update({ liveCaption: "" });
         return;
       }
 
+      const groqKey = document.getElementById("groq-api-key").value.trim();
+      if (!groqKey) {
+        alert("Masukkan Groq API Key terlebih dahulu (gratis di console.groq.com/keys)!");
+        document.getElementById("groq-api-key").focus();
+        return;
+      }
+      saveGroqKey();
+
       try {
         hostTabStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
-          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
         });
-        hostTabStream.getVideoTracks().forEach((t) => t.stop());
 
-        if (hostTabStream.getAudioTracks().length === 0) {
-          alert("Centang kotak 'Bagikan audio tab' pada jendela pilihan browser!");
+        hostTabStream.getVideoTracks().forEach((t) => t.stop());
+        const audioTracks = hostTabStream.getAudioTracks();
+
+        if (audioTracks.length === 0) {
+          alert("Gagal: Anda belum mencentang kotak 'Bagikan audio tab' (Share tab audio)!");
           hostTabStream.getTracks().forEach((t) => t.stop());
           return;
         }
 
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-          alert("Gunakan Google Chrome atau Microsoft Edge di PC/Laptop untuk fitur ini.");
-          return;
-        }
+        tabAudioOnlyStream = new MediaStream(audioTracks);
+
+        audioTracks[0].onended = () => {
+          if (hostCcActive) toggleHostAutoSubtitle();
+        };
 
         hostCcActive = true;
-        btn.textContent = "⏹ Hentikan Subtitle";
+        btn.textContent = "⏹ Hentikan Subtitle Tab";
         btn.style.background = "#374151";
-        statusEl.textContent = "ON AIR";
+        statusEl.textContent = "ON AIR (TAB AUDIO)";
         statusEl.style.color = "#10b981";
-        previewEl.textContent = "Mendengarkan audio dari tab...";
+        previewEl.textContent = "Merekam & menerjemahkan audio langsung dari tab (mikrofon tidak dipakai)...";
 
-        hostRecognizer = new SpeechRecognition();
-        hostRecognizer.continuous = true;
-        hostRecognizer.interimResults = false;
-        hostRecognizer.lang = document.getElementById("host-source-lang").value;
-
-        hostRecognizer.onresult = (event) => {
-          if (!hostCcActive) return;
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) {
-              translateAndBroadcastToViewers(event.results[i][0].transcript);
-            }
-          }
-        };
-
-        hostRecognizer.onend = () => {
-          if (hostCcActive && hostRecognizer) {
-            try { hostRecognizer.start(); } catch (e) {}
-          }
-        };
-
-        hostRecognizer.start();
+        recordSingleTabChunk();
+        chunkLoopTimer = setInterval(recordSingleTabChunk, 4300);
       } catch (e) {
         previewEl.textContent = "Izin tangkap audio tab dibatalkan.";
       }
