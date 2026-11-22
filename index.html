@@ -3,14 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="referrer" content="no-referrer" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <title>ZY STREAM — Live</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- HLS.js -->
+  <!-- HLS.js & YouTube IFrame API -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
 
   <!-- Firebase Realtime Database -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -190,6 +191,18 @@
       left: -2%;
       width: 104%;
       height: 112%;
+    }
+
+    /* YOUTUBE API CONTAINER */
+    .yt-api-container {
+      display: none;
+      position: absolute;
+      top: -6%;
+      left: -2%;
+      width: 104%;
+      height: 112%;
+      z-index: 2;
+      pointer-events: none;
     }
 
     /* AUTO-SUBTITLE BAHASA INDONESIA OVERLAY */
@@ -887,8 +900,16 @@
           </div>
         </div>
 
+        <!-- PEMUTAR HLS / MP4 -->
         <video id="video-player" muted playsinline crossorigin="anonymous" style="display:none;" oncontextmenu="return false;"></video>
-        <iframe id="iframe-player" style="display:none;" referrerpolicy="no-referrer" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+
+        <!-- PEMUTAR YOUTUBE API (BEBAS ERROR 153 + AUTO-NEXT K-POP) -->
+        <div class="yt-api-container" id="yt-api-container">
+          <div id="yt-player"></div>
+        </div>
+
+        <!-- PEMUTAR IFRAME UNIVERSAL (FANVERSECAST / TWITCH / GDRIVE / EMBED EKSTERNAL) -->
+        <iframe id="iframe-player" style="display:none;" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen></iframe>
       </div>
 
       <div class="show-details">
@@ -964,6 +985,7 @@
 
     const videoBoxEl = document.getElementById("video-box");
     const videoEl = document.getElementById("video-player");
+    const ytContainerEl = document.getElementById("yt-api-container");
     const iframeEl = document.getElementById("iframe-player");
     const shieldEl = document.getElementById("player-shield");
     const noticeEl = document.getElementById("stream-notice");
@@ -985,6 +1007,8 @@
 
     let currentData = null;
     let hls = null;
+    let ytPlayer = null;
+    let ytApiReady = false;
     let currentMediaInfo = null;
     let isMuted = true;
     let selectedQualityValue = "auto";
@@ -993,6 +1017,23 @@
     let ccEnabled = false;
     let lastTranslatedSource = "";
     let subClearTimer = null;
+
+    // ANTREAN AUTO-NEXT LAGU / MV K-POP (TANPA STOP)
+    let kpopQueue = [];
+    let kpopQueueIndex = 0;
+    const DEFAULT_KPOP_FALLBACK = [
+      "gdZLi9oWNZg", // BTS - Dynamite
+      "ioNng23DkIM", // BLACKPINK - How You Like That
+      "ArmDp-zijuc", // NewJeans - Super Shy
+      "phuiiNCxRMg", // aespa - Supernova
+      "Os_heh8vPfs", // IVE - I AM
+      "fE2h3lGlOsk", // ITZY - WANNABE
+      "TQTlCHxyuu8"  // Stray Kids - God's Menu
+    ];
+
+    window.onYouTubeIframeAPIReady = function () {
+      ytApiReady = true;
+    };
 
     function showNotice(text, autoHideMs = 0) {
       if (!text) {
@@ -1057,25 +1098,103 @@
       document.getElementById("viewer-count").textContent = snap.numChildren().toLocaleString("id-ID");
     });
 
-    // 3. HELPER YOUTUBE & SUBTITLE INDONESIA (ANDROID / IOS / PC)
+    // 3. YOUTUBE API & AUTO-NEXT K-POP ENGINE
+    function extractYouTubeId(url) {
+      const m = url.trim().match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+      return m ? m[1] : null;
+    }
+
     function sendYouTubeCommand(func, args = []) {
-      if (!iframeEl || !iframeEl.contentWindow) return;
-      iframeEl.contentWindow.postMessage(JSON.stringify({
-        event: "command",
-        func: func,
-        args: args
-      }), "*");
+      if (!ytPlayer) return;
+      if (typeof ytPlayer[func] === "function") {
+        ytPlayer[func](...args);
+      }
     }
 
     function forceYouTubeIndonesianCaptions() {
-      if (!currentMediaInfo || currentMediaInfo.platform !== "youtube") return;
-      sendYouTubeCommand("loadModule", ["captions"]);
-      setTimeout(() => {
-        sendYouTubeCommand("setOption", ["captions", "track", { languageCode: "id" }]);
-        sendYouTubeCommand("setOption", ["captions", "reload", true]);
-      }, 600);
+      if (!ytPlayer || typeof ytPlayer.loadModule !== "function") return;
+      ytPlayer.loadModule("captions");
+      ytPlayer.setOption("captions", "track", { languageCode: "id" });
     }
 
+    function playNextKpopVideo() {
+      if (!kpopQueue.length) {
+        kpopQueue = [...DEFAULT_KPOP_FALLBACK];
+      }
+      kpopQueueIndex = (kpopQueueIndex + 1) % kpopQueue.length;
+      const nextId = kpopQueue[kpopQueueIndex];
+
+      if (ytPlayer && typeof ytPlayer.loadVideoById === "function") {
+        ytPlayer.loadVideoById({ videoId: nextId, startSeconds: 0 });
+        showNotice("Memutar lagu / MV K-Pop berikutnya...", 2000);
+      }
+    }
+
+    function mountYouTubePlayer(firstVideoId, startSec) {
+      ytContainerEl.style.display = "block";
+
+      const adminList = (currentData && currentData.kpopPlaylist)
+        ? currentData.kpopPlaylist.split(/[\n,]+/).map(extractYouTubeId).filter(Boolean)
+        : [];
+
+      const merged = [firstVideoId, ...adminList, ...DEFAULT_KPOP_FALLBACK];
+      kpopQueue = [...new Set(merged)];
+      kpopQueueIndex = 0;
+
+      const initPlayer = () => {
+        if (ytPlayer && typeof ytPlayer.destroy === "function") {
+          try { ytPlayer.destroy(); } catch (e) {}
+          ytContainerEl.innerHTML = '<div id="yt-player"></div>';
+        }
+
+        ytPlayer = new YT.Player("yt-player", {
+          width: "100%",
+          height: "100%",
+          videoId: firstVideoId,
+          host: "https://www.youtube.com",
+          playerVars: {
+            autoplay: 1,
+            mute: isMuted ? 1 : 0,
+            controls: 0,
+            disablekb: 1,
+            rel: 0,
+            playsinline: 1,
+            start: startSec > 0 ? startSec : 0,
+            origin: window.location.origin
+          },
+          events: {
+            onReady: (e) => {
+              showNotice("");
+              if (!isMuted) {
+                e.target.unMute();
+                e.target.setVolume(100);
+              }
+              e.target.playVideo();
+              if (ccEnabled) forceYouTubeIndonesianCaptions();
+            },
+            onStateChange: (e) => {
+              // YT.PlayerState.ENDED === 0 -> Otomatis lanjut ke MV K-Pop berikutnya!
+              if (e.data === 0) {
+                playNextKpopVideo();
+              }
+            },
+            onError: () => {
+              // Jika video tidak mengizinkan embed, otomatis skip ke MV K-Pop berikutnya
+              showNotice("Video tidak bisa di-embed, lanjut ke MV K-Pop berikutnya...", 2200);
+              setTimeout(playNextKpopVideo, 1200);
+            }
+          }
+        });
+      };
+
+      if (ytApiReady && window.YT && window.YT.Player) {
+        initPlayer();
+      } else {
+        setTimeout(initPlayer, 650);
+      }
+    }
+
+    // 4. SUBTITLE INDONESIA (ANDROID / IOS / PC)
     async function translateToIndonesian(text) {
       const clean = text.trim();
       if (!clean || clean === lastTranslatedSource) return;
@@ -1131,8 +1250,7 @@
 
       if (ccEnabled) {
         if (currentMediaInfo && currentMediaInfo.platform === "youtube") {
-          iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, selectedQualityValue, true);
-          setTimeout(forceYouTubeIndonesianCaptions, 1200);
+          forceYouTubeIndonesianCaptions();
           renderSubtitleLine("Subtitle otomatis Bahasa Indonesia aktif.", "YOUTUBE CC • INDONESIA");
           return;
         }
@@ -1147,12 +1265,11 @@
         subOverlayEl.classList.remove("active");
         if (currentMediaInfo && currentMediaInfo.platform === "youtube") {
           sendYouTubeCommand("unloadModule", ["captions"]);
-          iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, selectedQualityValue, false);
         }
       }
     }
 
-    // 4. MENU KUALITAS VIDEO DINAMIS (HLS RTMP, YouTube, Twitch)
+    // 5. MENU KUALITAS VIDEO DINAMIS (HLS RTMP, YouTube, Twitch)
     function toggleQualityMenu(e) {
       e.stopPropagation();
       const isOpen = qualityMenuEl.classList.toggle("open");
@@ -1207,13 +1324,12 @@
       if (currentMediaInfo.platform === "youtube") {
         sendYouTubeCommand("setPlaybackQualityRange", [val === "auto" ? "small" : val, val === "auto" ? "highres" : val]);
         sendYouTubeCommand("setPlaybackQuality", [val === "auto" ? "default" : val]);
-        iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, val, ccEnabled);
         showNotice(`Kualitas YouTube: ${label}`, 1800);
         return;
       }
 
       if (currentMediaInfo.platform === "twitch_chan" || currentMediaInfo.platform === "twitch_vod") {
-        iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, val, ccEnabled);
+        iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, val);
         showNotice(`Kualitas Twitch: ${label}`, 1800);
       }
     }
@@ -1230,16 +1346,10 @@
       ]);
     }
 
-    function buildIframeUrl(media, muted, qCode = "auto", ccOn = false) {
+    function buildIframeUrl(media, muted, qCode = "auto") {
       const host = window.location.hostname || "localhost";
       const elapsedSec = getTargetElapsedSeconds();
 
-      if (media.platform === "youtube") {
-        const startParam = elapsedSec > 0 ? `&start=${elapsedSec}` : "";
-        const vqParam = qCode !== "auto" ? `&vq=${qCode}` : "";
-        const ccParam = ccOn ? `&cc_load_policy=1&cc_lang_pref=id&hl=id` : "";
-        return `https://www.youtube.com/embed/${media.videoId}?autoplay=1&mute=${muted ? 1 : 0}&controls=0&disablekb=1&rel=0&playsinline=1&enablejsapi=1${startParam}${vqParam}${ccParam}`;
-      }
       if (media.platform === "twitch_vod") {
         const h = Math.floor(elapsedSec / 3600);
         const m = Math.floor((elapsedSec % 3600) / 60);
@@ -1254,13 +1364,13 @@
       return media.rawUrl;
     }
 
-    // 5. UNIVERSAL LINK RESOLVER
+    // 6. UNIVERSAL LINK RESOLVER (YOUTUBE, TWITCH, GDRIVE, HLS, MP4, WEB IFRAME)
     function resolveMediaSource(rawUrl, forcedType) {
       const url = rawUrl.trim();
 
-      const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-      if (ytMatch && ytMatch[1]) {
-        return { mode: "iframe", platform: "youtube", cropped: true, videoId: ytMatch[1], rawUrl: url };
+      const ytId = extractYouTubeId(url);
+      if (ytId) {
+        return { mode: "youtube", platform: "youtube", videoId: ytId, rawUrl: url };
       }
 
       const twitchVod = url.match(/twitch\.tv\/videos\/(\d+)/);
@@ -1286,10 +1396,11 @@
         return { mode: "mp4", src: url };
       }
 
+      // Semua web embed eksternal (fanversecast.fans, dll) otomatis masuk ke iframe universal
       return { mode: "iframe", platform: "web_embed", cropped: false, rawUrl: url };
     }
 
-    // 6. KONTROL SUARA & SINKRONISASI DETIK
+    // 7. KONTROL SUARA & SINKRONISASI DETIK
     function activateAudioAndPlay() {
       isMuted = false;
       unmuteBannerEl.classList.add("hidden");
@@ -1302,7 +1413,7 @@
         sendYouTubeCommand("setVolume", [100]);
         sendYouTubeCommand("playVideo");
       } else if (currentMediaInfo.platform === "twitch_chan" || currentMediaInfo.platform === "twitch_vod") {
-        iframeEl.src = buildIframeUrl(currentMediaInfo, false, selectedQualityValue, ccEnabled);
+        iframeEl.src = buildIframeUrl(currentMediaInfo, false, selectedQualityValue);
       } else if (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls") {
         videoEl.muted = false;
         videoEl.volume = 1.0;
@@ -1321,7 +1432,7 @@
         if (currentMediaInfo.platform === "youtube") {
           sendYouTubeCommand("mute");
         } else if (currentMediaInfo.platform === "twitch_chan" || currentMediaInfo.platform === "twitch_vod") {
-          iframeEl.src = buildIframeUrl(currentMediaInfo, true, selectedQualityValue, ccEnabled);
+          iframeEl.src = buildIframeUrl(currentMediaInfo, true, selectedQualityValue);
         } else {
           videoEl.muted = true;
         }
@@ -1338,7 +1449,7 @@
         sendYouTubeCommand("seekTo", [targetSec, true]);
         sendYouTubeCommand("playVideo");
       } else if (currentMediaInfo.platform === "twitch_vod" || currentMediaInfo.platform === "twitch_chan") {
-        iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, selectedQualityValue, ccEnabled);
+        iframeEl.src = buildIframeUrl(currentMediaInfo, isMuted, selectedQualityValue);
       } else if (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls") {
         if (isFinite(videoEl.duration) && targetSec < videoEl.duration) {
           videoEl.currentTime = targetSec;
@@ -1357,7 +1468,7 @@
       }
     }
 
-    // 7. REAL-TIME DATA SIARAN & THUMBNAIL
+    // 8. REAL-TIME DATA SIARAN & THUMBNAIL
     streamRef.on("value", (snap) => {
       const data = snap.val();
 
@@ -1378,6 +1489,7 @@
       const prevStatus = currentData ? currentData.status : "";
       const prevStartedAt = currentData ? currentData.startedAt : 0;
       const prevCaption = currentData ? currentData.liveCaption : "";
+      const prevPlaylist = currentData ? currentData.kpopPlaylist : "";
       currentData = data;
 
       document.getElementById("event-name").textContent = data.eventName || "ZY STREAM LIVE";
@@ -1409,7 +1521,8 @@
           prevUrl !== data.streamUrl ||
           prevType !== data.streamType ||
           prevStatus !== "LIVE" ||
-          prevStartedAt !== data.startedAt
+          prevStartedAt !== data.startedAt ||
+          prevPlaylist !== data.kpopPlaylist
         ) {
           playStream(data.streamUrl.trim(), data.streamType || "auto");
         }
@@ -1434,7 +1547,7 @@
       }
     }
 
-    // 8. PEMUTAR STREAM ANTI-BLACKSCREEN (HLS RTMP + Fallback + Iframe)
+    // 9. PEMUTAR STREAM UNIVERSAL (YOUTUBE API + IFRAME EMBED + HLS RTMP + MP4)
     function playStream(rawUrl, type) {
       stopStream();
       setDefaultQualityOptions();
@@ -1447,21 +1560,23 @@
       unmuteBannerEl.classList.remove("hidden");
       soundToggleBtn.textContent = "🔇 Suara Mati";
 
-      if (media.mode === "iframe") {
+      if (media.mode === "youtube") {
         videoEl.style.display = "none";
+        iframeEl.style.display = "none";
+        mountYouTubePlayer(media.videoId, getTargetElapsedSeconds());
+      } else if (media.mode === "iframe") {
+        videoEl.style.display = "none";
+        ytContainerEl.style.display = "none";
         iframeEl.style.display = "block";
         iframeEl.classList.toggle("cropped-embed", Boolean(media.cropped));
-        iframeEl.src = buildIframeUrl(media, true, selectedQualityValue, ccEnabled);
+        iframeEl.src = buildIframeUrl(media, true, selectedQualityValue);
 
         iframeEl.onload = () => {
           showNotice("");
-          if (media.platform === "youtube") {
-            sendYouTubeCommand("playVideo");
-            if (ccEnabled) forceYouTubeIndonesianCaptions();
-          }
         };
       } else if (media.mode === "hls") {
         iframeEl.style.display = "none";
+        ytContainerEl.style.display = "none";
         videoEl.style.display = "block";
         videoEl.muted = true;
         showNotice("Menghubungkan aliran siaran...");
@@ -1541,6 +1656,7 @@
         }
       } else {
         iframeEl.style.display = "none";
+        ytContainerEl.style.display = "none";
         videoEl.style.display = "block";
         videoEl.muted = true;
         videoEl.src = media.src;
@@ -1561,6 +1677,13 @@
         hls.destroy();
         hls = null;
       }
+      if (ytPlayer && typeof ytPlayer.destroy === "function") {
+        try { ytPlayer.destroy(); } catch (e) {}
+        ytPlayer = null;
+      }
+      ytContainerEl.style.display = "none";
+      ytContainerEl.innerHTML = '<div id="yt-player"></div>';
+
       currentMediaInfo = null;
       showNotice("");
       videoEl.pause();
@@ -1581,7 +1704,7 @@
       });
     }
 
-    // 9. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
+    // 10. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
     const EXPIRE_MS = 2 * 60 * 1000;
     const shownKeys = new Set();
     const avatarColors = ["#e11d48", "#7c3aed", "#2563eb", "#059669", "#d97706", "#db2777"];
