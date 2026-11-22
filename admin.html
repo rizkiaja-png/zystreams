@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ZY STREAM — Admin Studio (GitHub Pages)</title>
+  <title>ZY STREAM — Admin Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -299,33 +299,29 @@
     <div>
       <div class="card">
         <div class="card-title">
-          <span>Pengaturan Siaran & RTMP Software</span>
+          <span>Pengaturan Siaran, YouTube Auto-Next & RTMP</span>
           <span id="current-status-pill" style="font-size:0.75rem; padding:4px 10px; border-radius:99px; background:#252530;">STANDBY</span>
         </div>
 
-        <!-- GENERATOR RTMP OTOMATIS (CLIENT-SIDE UNTUK GITHUB PAGES) -->
+        <!-- GENERATOR RTMP MANDIRI -->
         <div class="rtmp-box">
           <div class="rtmp-header">
-            <span>📡 RTMP Ingest Otomatis (OBS / vMix / Streamlabs)</span>
-            <button type="button" class="btn" id="btn-gen-rtmp" onclick="generateRtmpCredentials()" style="padding:7px 14px; font-size:0.78rem;">
-              ⚡ Generate RTMP Key Baru
+            <span>📡 RTMP Server Mandiri (OBS Studio / vMix)</span>
+            <button type="button" class="btn" onclick="generateCustomRtmpKey()" style="padding:7px 14px; font-size:0.78rem;">
+              ⚡ Buat Stream Key Acak
             </button>
           </div>
 
-          <!-- API KEY LIVEPEER (TERSMPAN LOKAL DI BROWSER KAMU, AMAN DI GITHUB PUBLIK) -->
-          <div class="form-group" style="margin-bottom:12px;">
-            <label style="color:#f5b041;">Livepeer Studio API Key (Tersimpan lokal di browser ini saja)</label>
-            <div class="input-copy-group">
-              <input type="password" id="livepeer-api-key" placeholder="Tempel API Key dari livepeer.studio/dashboard/developers/api-keys" onchange="saveLocalApiKey()" />
-              <button type="button" class="btn btn-secondary" onclick="saveLocalApiKey(true)">Simpan Key</button>
-            </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label>Domain Publik Server HTTP/HLS Kamu (dari Cloudflare Tunnel / VPS)</label>
+            <input type="text" id="custom-hls-domain" placeholder="Contoh: https://abc-xyz.trycloudflare.com" oninput="syncCustomRtmpUrl()" />
           </div>
 
           <div class="row-2">
             <div>
-              <label>RTMP Server URL (Custom Service di OBS)</label>
+              <label>RTMP Server URL (OBS Custom)</label>
               <div class="input-copy-group">
-                <input type="text" id="rtmp-server" value="rtmp://rtmp.livepeer.com/live" readonly />
+                <input type="text" id="rtmp-server" value="rtmp://localhost:1935/live" />
                 <button type="button" class="btn btn-secondary" onclick="copyField('rtmp-server', this)">Salin</button>
               </div>
             </div>
@@ -333,22 +329,25 @@
             <div>
               <label>Stream Key</label>
               <div class="input-copy-group">
-                <input type="text" id="rtmp-key" placeholder="Klik Generate RTMP Key..." readonly />
+                <input type="text" id="rtmp-key" placeholder="zy_xxxxxxxx" oninput="syncCustomRtmpUrl()" />
                 <button type="button" class="btn btn-secondary" onclick="copyField('rtmp-key', this)">Salin</button>
               </div>
             </div>
           </div>
 
           <div class="hint">
-            1. Masukkan API Key gratis dari <strong>livepeer.studio</strong> sekali saja (aman, tidak ikut ter-upload ke GitHub).<br>
-            2. Klik <strong>Generate RTMP Key Baru</strong> → otomatis mengisi link <code>.m3u8</code> multi-resolusi (1080p–360p) di bawah.<br>
-            3. Salin <strong>Server URL</strong> & <strong>Stream Key</strong> ke OBS (Settings → Stream → Custom) lalu klik <strong>Start Streaming</strong>.
+            Isi <strong>Domain Publik</strong> & <strong>Stream Key</strong> yang sama dengan di terminal <code>server.js</code>, maka kolom <strong>Stream URL (.m3u8)</strong> di bawah otomatis tersusun.
           </div>
         </div>
 
         <div class="form-group">
-          <label>Stream URL (Otomatis terisi saat Generate RTMP, atau tempel YouTube / Twitch / M3U8)</label>
-          <input type="text" id="stream-url" placeholder="https://livepeercdn.studio/hls/.../index.m3u8" />
+          <label>Stream URL (Tempel YouTube / Fanversecast Embed / Twitch / M3U8)</label>
+          <input type="text" id="stream-url" placeholder="https://youtu.be/... atau https://advertisement.fanversecast.fans/?idolverse" />
+        </div>
+
+        <div class="form-group">
+          <label>Antrean Auto-Next Lagu / MV K-Pop (Opsional — 1 link YouTube per baris, otomatis lanjut tanpa stop)</label>
+          <textarea id="kpop-playlist" rows="3" placeholder="https://youtu.be/link_lagu_kpop_2&#10;https://youtu.be/link_lagu_kpop_3"></textarea>
         </div>
 
         <div class="row-2">
@@ -453,18 +452,6 @@
     let viewersRef = db.ref(`streams/${currentSiteId}/viewers`);
     let chatRef = db.ref(`streams/${currentSiteId}/chat`);
 
-    // Muat Livepeer API Key yang tersimpan lokal di browser
-    const savedLpKey = localStorage.getItem("zy_livepeer_api_key");
-    if (savedLpKey) {
-      document.getElementById("livepeer-api-key").value = savedLpKey;
-    }
-
-    function saveLocalApiKey(notify = false) {
-      const key = document.getElementById("livepeer-api-key").value.trim();
-      localStorage.setItem("zy_livepeer_api_key", key);
-      if (notify) showToast("API Key disimpan di browser ini!");
-    }
-
     function showToast(msg) {
       const t = document.getElementById("toast");
       t.textContent = msg;
@@ -482,70 +469,22 @@
       });
     }
 
-    // 1. GENERATE RTMP KEY OTOMATIS LANGSUNG DARI GITHUB PAGES (CLIENT-SIDE)
-    async function generateRtmpCredentials() {
-      const apiKey = document.getElementById("livepeer-api-key").value.trim();
-      if (!apiKey) {
-        alert("Masukkan Livepeer Studio API Key terlebih dahulu! Dapatkan gratis di livepeer.studio/dashboard/developers/api-keys");
-        document.getElementById("livepeer-api-key").focus();
-        return;
-      }
+    function generateCustomRtmpKey() {
+      const rand = "zy_" + Math.random().toString(36).substring(2, 10);
+      document.getElementById("rtmp-key").value = rand;
+      syncCustomRtmpUrl();
+      showToast("Stream Key baru dibuat! Salin ke OBS & server.js.");
+    }
 
-      saveLocalApiKey();
-      const btn = document.getElementById("btn-gen-rtmp");
-      const titleVal = document.getElementById("stream-title").value.trim() || `ZY-${currentSiteId}-${Date.now()}`;
-
-      btn.disabled = true;
-      btn.textContent = "⏳ Membuat Key...";
-
-      try {
-        const res = await fetch("https://livepeer.studio/api/stream", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            name: titleVal.slice(0, 60),
-            profiles: [
-              { name: "1080p", bitrate: 4000000, fps: 30, width: 1920, height: 1080 },
-              { name: "720p", bitrate: 2000000, fps: 30, width: 1280, height: 720 },
-              { name: "480p", bitrate: 1000000, fps: 30, width: 854, height: 480 },
-              { name: "360p", bitrate: 500000, fps: 30, width: 640, height: 360 }
-            ]
-          })
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.errors ? data.errors.join(", ") : "API Key tidak valid atau gagal membuat stream.");
-        }
-
-        const rtmpServer = "rtmp://rtmp.livepeer.com/live";
-        const playbackUrl = `https://livepeercdn.studio/hls/${data.playbackId}/index.m3u8`;
-
-        document.getElementById("rtmp-server").value = rtmpServer;
-        document.getElementById("rtmp-key").value = data.streamKey;
-        document.getElementById("stream-url").value = playbackUrl;
+    function syncCustomRtmpUrl() {
+      const domain = document.getElementById("custom-hls-domain").value.trim().replace(/\/+$/, "");
+      const key = document.getElementById("rtmp-key").value.trim();
+      if (domain && key) {
+        document.getElementById("stream-url").value = `${domain}/live/${key}/index.m3u8`;
         document.getElementById("stream-type").value = "hls";
-
-        await streamRef.update({
-          rtmpServer: rtmpServer,
-          rtmpKey: data.streamKey,
-          streamUrl: playbackUrl,
-          streamType: "hls"
-        });
-
-        showToast("RTMP Key & URL .m3u8 berhasil dibuat!");
-      } catch (err) {
-        alert("Error: " + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "⚡ Generate RTMP Key Baru";
       }
     }
 
-    // 2. GANTI CHANNEL & MUAT DATA FIREBASE
     function switchSite(newId) {
       streamRef.off();
       viewersRef.off();
@@ -565,9 +504,11 @@
 
       streamRef.on("value", (snap) => {
         const d = snap.val() || {};
-        document.getElementById("rtmp-server").value = d.rtmpServer || "rtmp://rtmp.livepeer.com/live";
+        document.getElementById("custom-hls-domain").value = d.customHlsDomain || "";
+        document.getElementById("rtmp-server").value = d.rtmpServer || "rtmp://localhost:1935/live";
         document.getElementById("rtmp-key").value = d.rtmpKey || "";
         document.getElementById("stream-url").value = d.streamUrl || "";
+        document.getElementById("kpop-playlist").value = d.kpopPlaylist || "";
         document.getElementById("stream-type").value = d.streamType || "auto";
         document.getElementById("event-name").value = d.eventName || "";
         document.getElementById("stream-title").value = d.title || "";
@@ -607,9 +548,11 @@
 
     function saveAndSetStatus(status) {
       const payload = {
+        customHlsDomain: document.getElementById("custom-hls-domain").value.trim(),
         rtmpServer: document.getElementById("rtmp-server").value.trim(),
         rtmpKey: document.getElementById("rtmp-key").value.trim(),
         streamUrl: document.getElementById("stream-url").value.trim(),
+        kpopPlaylist: document.getElementById("kpop-playlist").value.trim(),
         streamType: document.getElementById("stream-type").value,
         eventName: document.getElementById("event-name").value.trim(),
         title: document.getElementById("stream-title").value.trim(),
@@ -627,7 +570,6 @@
       });
     }
 
-    // 3. MODERASI CHAT
     function deleteChat(key) {
       chatRef.child(key).remove();
     }
@@ -652,7 +594,7 @@
       });
     });
 
-    // 4. HOST AUTO-SUBTITLE (KOREA/INGGRIS/JEPANG -> INDONESIA KE SEMUA HP PENONTON)
+    // HOST AUTO-SUBTITLE (KOREA/INGGRIS/JEPANG -> INDONESIA KE SEMUA HP PENONTON)
     let hostCcActive = false;
     let hostTabStream = null;
     let hostRecognizer = null;
