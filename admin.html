@@ -24,6 +24,7 @@
       --accent: #ff2e63;
       --gold: #f5b041;
       --green: #10b981;
+      --purple: #8b5cf6;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -78,11 +79,11 @@
     }
 
     .layout {
-      max-width: 1200px;
+      max-width: 1220px;
       margin: 26px auto 0;
       padding: 0 24px;
       display: grid;
-      grid-template-columns: 1.3fr 0.9fr;
+      grid-template-columns: 1.35fr 0.85fr;
       gap: 24px;
     }
 
@@ -94,10 +95,15 @@
       margin-bottom: 20px;
     }
 
+    .card-highlight {
+      border: 1px solid rgba(139, 92, 246, 0.45);
+      background: linear-gradient(180deg, rgba(139, 92, 246, 0.08) 0%, var(--bg-card) 100%);
+    }
+
     .card-title {
       font-size: 1rem;
       font-weight: 800;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -174,6 +180,13 @@
       color: #062419;
     }
 
+    .btn-purple {
+      background: linear-gradient(135deg, #8b5cf6, #ec4899);
+      color: #fff;
+      font-size: 0.92rem;
+      padding: 13px 20px;
+    }
+
     .status-bar {
       display: flex;
       gap: 10px;
@@ -182,6 +195,26 @@
     }
 
     .status-bar .btn { flex: 1; }
+
+    .screen-preview-wrap {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 14px;
+      align-items: center;
+      background: #101015;
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .screen-mini-video {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 8px;
+      object-fit: contain;
+    }
 
     .rtmp-box {
       background: rgba(255, 46, 99, 0.05);
@@ -209,13 +242,13 @@
     .hint {
       font-size: 0.75rem;
       color: var(--text-dim);
-      margin-top: 10px;
+      margin-top: 8px;
       line-height: 1.5;
     }
 
     /* CHAT MODERATION */
     .chat-box {
-      height: 360px;
+      height: 420px;
       overflow-y: auto;
       background: #101015;
       border: 1px solid var(--border-soft);
@@ -272,6 +305,7 @@
     @media (max-width: 900px) {
       .layout { grid-template-columns: 1fr; }
       .row-2 { grid-template-columns: 1fr; }
+      .screen-preview-wrap { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -298,29 +332,101 @@
   </header>
 
   <main class="layout">
-    <!-- KOLOM KIRI: STREAM, RTMP & AUTO-SUBTITLE AUDIO TAB -->
+    <!-- KOLOM KIRI: SHARE SCREEN TAB + AUTO-SUBTITLE + PENGATURAN SIARAN -->
     <div>
+      <!-- 1. SHARE SCREEN TAB LANGSUNG + AUTO-SUBTITLE INDONESIA -->
+      <div class="card card-highlight">
+        <div class="card-title">
+          <span>🖥️ Live Share Screen Tab + Auto-Subtitle Otomatis</span>
+          <span id="screenshare-status-pill" style="font-size:0.74rem; padding:4px 10px; border-radius:99px; background:#252530;">SIAP</span>
+        </div>
+
+        <div class="row-2" style="margin-bottom:10px;">
+          <div>
+            <label style="color:#f5b041;">Groq API Key (Untuk Auto-Subtitle Tab)</label>
+            <div class="input-copy-group">
+              <input type="password" id="groq-api-key" placeholder="gsk_xxxxxxxx (opsional jika tanpa CC)" onchange="saveGroqKey()" />
+              <button type="button" class="btn btn-secondary" onclick="saveGroqKey(true)">Simpan</button>
+            </div>
+          </div>
+
+          <div>
+            <label>Bahasa Asal Audio Tab</label>
+            <select id="host-source-lang">
+              <option value="ko">Korea (ko) → Indonesia</option>
+              <option value="en">Inggris (en) → Indonesia</option>
+              <option value="ja">Jepang (ja) → Indonesia</option>
+              <option value="">Deteksi Otomatis → Indonesia</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
+          <button type="button" class="btn btn-purple" id="btn-start-screenshare" onclick="toggleScreenShareBroadcast()" style="flex:2;">
+            🚀 Mulai Share Screen Tab (+ Auto-Subtitle)
+          </button>
+          <button type="button" class="btn btn-secondary" id="btn-host-auto-cc" onclick="toggleStandaloneTabSubtitle()" style="flex:1;">
+            💬 Subtitle Tab Saja (Mode Link)
+          </button>
+        </div>
+
+        <div class="screen-preview-wrap">
+          <video id="host-screen-preview" class="screen-mini-video" muted autoplay playsinline></video>
+          <div>
+            <div id="rtc-peers-info" style="font-size:0.76rem; font-weight:700; color:#a78bfa; margin-bottom:4px;">
+              Koneksi Penonton Share Screen: 0 perangkat terhubung
+            </div>
+            <div id="host-cc-preview" style="font-size:0.8rem; color:var(--text-gray); line-height:1.45;">
+              Klik <strong>Mulai Share Screen Tab</strong> → pilih tab tontonan → centang <strong>"Bagikan audio tab"</strong>. Video, suara, dan subtitle Indonesia langsung tayang sinkron ke penonton.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. PENGATURAN JUDUL, THUMBNAIL & MODE LINK / RTMP -->
       <div class="card">
         <div class="card-title">
-          <span>Pengaturan Siaran, YouTube Auto-Next & RTMP</span>
+          <span>Detail Tayangan, YouTube Auto-Next & RTMP</span>
           <span id="current-status-pill" style="font-size:0.75rem; padding:4px 10px; border-radius:99px; background:#252530;">STANDBY</span>
+        </div>
+
+        <div class="row-2">
+          <div class="form-group">
+            <label>Nama Acara (Subtitle Atas)</label>
+            <input type="text" id="event-name" placeholder="ZY STREAM SPECIAL" />
+          </div>
+
+          <div class="form-group">
+            <label>Judul Tayangan</label>
+            <input type="text" id="stream-title" placeholder="Judul acara live..." />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Thumbnail / Poster Standby (URL Gambar)</label>
+          <input type="text" id="thumb-url" placeholder="https://..." />
+        </div>
+
+        <div class="form-group">
+          <label>Deskripsi Tayangan</label>
+          <textarea id="stream-desc" rows="2" placeholder="Informasi acara untuk penonton..."></textarea>
         </div>
 
         <!-- GENERATOR RTMP MANDIRI -->
         <div class="rtmp-box">
           <div class="rtmp-header">
-            <span>📡 RTMP Server Mandiri (OBS Studio / vMix)</span>
-            <button type="button" class="btn" onclick="generateCustomRtmpKey()" style="padding:7px 14px; font-size:0.78rem;">
+            <span>📡 Mode Alternatif: RTMP Server Mandiri / Link URL</span>
+            <button type="button" class="btn" onclick="generateCustomRtmpKey()" style="padding:6px 12px; font-size:0.75rem;">
               ⚡ Buat Stream Key Acak
             </button>
           </div>
 
           <div class="form-group" style="margin-bottom:10px;">
-            <label>Domain Publik Server HTTP/HLS Kamu (dari Cloudflare Tunnel / VPS)</label>
+            <label>Domain Publik Server HTTP/HLS (Cloudflare Tunnel / VPS)</label>
             <input type="text" id="custom-hls-domain" placeholder="Contoh: https://abc-xyz.trycloudflare.com" oninput="syncCustomRtmpUrl()" />
           </div>
 
-          <div class="row-2">
+          <div class="row-2" style="margin-bottom:10px;">
             <div>
               <label>RTMP Server URL (OBS Custom)</label>
               <div class="input-copy-group">
@@ -338,88 +444,33 @@
             </div>
           </div>
 
-          <div class="hint">
-            Isi <strong>Domain Publik</strong> & <strong>Stream Key</strong> yang sama dengan di terminal <code>server.js</code>, maka kolom <strong>Stream URL (.m3u8)</strong> di bawah otomatis tersusun.
-          </div>
-        </div>
+          <div class="row-2">
+            <div>
+              <label>Stream URL (YouTube / Fanversecast / Twitch / M3U8)</label>
+              <input type="text" id="stream-url" placeholder="https://youtu.be/... atau screenshare://tab-live" />
+            </div>
 
-        <div class="form-group">
-          <label>Stream URL (Tempel YouTube / Fanversecast Embed / Twitch / M3U8)</label>
-          <input type="text" id="stream-url" placeholder="https://youtu.be/... atau https://advertisement.fanversecast.fans/?idolverse" />
-        </div>
-
-        <div class="form-group">
-          <label>Antrean Auto-Next Lagu / MV K-Pop (Opsional — 1 link YouTube per baris, otomatis lanjut tanpa stop)</label>
-          <textarea id="kpop-playlist" rows="3" placeholder="https://youtu.be/link_lagu_kpop_2&#10;https://youtu.be/link_lagu_kpop_3"></textarea>
-        </div>
-
-        <div class="row-2">
-          <div class="form-group">
-            <label>Tipe Pemutar</label>
-            <select id="stream-type">
-              <option value="auto">Auto Detect (Rekomendasi)</option>
-              <option value="hls">HLS (.m3u8 / RTMP Output)</option>
-              <option value="mp4">MP4 Direct Video</option>
-            </select>
+            <div>
+              <label>Tipe Pemutar</label>
+              <select id="stream-type">
+                <option value="auto">Auto Detect (Rekomendasi)</option>
+                <option value="screenshare">Share Screen Tab (WebRTC Live)</option>
+                <option value="hls">HLS (.m3u8 / RTMP Output)</option>
+                <option value="mp4">MP4 Direct Video</option>
+              </select>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label>Nama Acara (Subtitle Atas)</label>
-            <input type="text" id="event-name" placeholder="ZY STREAM SPECIAL" />
+          <div class="form-group" style="margin-top:10px; margin-bottom:0;">
+            <label>Antrean Auto-Next Lagu / MV K-Pop (Opsional — 1 link YouTube per baris)</label>
+            <textarea id="kpop-playlist" rows="2" placeholder="https://youtu.be/link_lagu_kpop_2&#10;https://youtu.be/link_lagu_kpop_3"></textarea>
           </div>
-        </div>
-
-        <div class="form-group">
-          <label>Judul Tayangan</label>
-          <input type="text" id="stream-title" placeholder="Judul acara live..." />
-        </div>
-
-        <div class="form-group">
-          <label>Thumbnail / Poster Standby (URL Gambar)</label>
-          <input type="text" id="thumb-url" placeholder="https://..." />
-        </div>
-
-        <div class="form-group">
-          <label>Deskripsi Tayangan</label>
-          <textarea id="stream-desc" rows="3" placeholder="Informasi acara untuk penonton..."></textarea>
         </div>
 
         <div class="status-bar">
-          <button type="button" class="btn btn-green" onclick="saveAndSetStatus('LIVE')">▶ MULAI LIVE (SYNC DETIK 0)</button>
+          <button type="button" class="btn btn-green" onclick="saveAndSetStatus('LIVE')">▶ MULAI LIVE (MODE URL/RTMP)</button>
           <button type="button" class="btn btn-secondary" onclick="saveAndSetStatus('STANDBY')">⏸ STANDBY</button>
-          <button type="button" class="btn" style="background:#374151;" onclick="saveAndSetStatus('ENDED')">⏹ AKHIRI</button>
-        </div>
-      </div>
-
-      <!-- AUTO-SUBTITLE INDONESIA MURNI DARI AUDIO TAB (TANPA MIKROFON) -->
-      <div class="card">
-        <div class="card-title">
-          <span>💬 Auto-Subtitle Tab Murni (100% Audio Tab, Tanpa Mic)</span>
-          <span id="host-cc-status" style="font-size:0.75rem; color:var(--text-dim);">OFF</span>
-        </div>
-
-        <div class="form-group" style="margin-bottom:10px;">
-          <label style="color:#f5b041;">Groq API Key Gratis (console.groq.com/keys — tersimpan lokal di browser ini saja)</label>
-          <div class="input-copy-group">
-            <input type="password" id="groq-api-key" placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx" onchange="saveGroqKey()" />
-            <button type="button" class="btn btn-secondary" onclick="saveGroqKey(true)">Simpan Key</button>
-          </div>
-        </div>
-
-        <div class="row-2" style="margin-bottom:10px;">
-          <select id="host-source-lang">
-            <option value="ko">Bahasa Asal Audio: Korea (ko)</option>
-            <option value="en">Bahasa Asal Audio: Inggris (en)</option>
-            <option value="ja">Bahasa Asal Audio: Jepang (ja)</option>
-            <option value="">Deteksi Bahasa Otomatis</option>
-          </select>
-          <button type="button" class="btn" id="btn-host-auto-cc" onclick="toggleHostAutoSubtitle()">
-            🔊 Tangkap Audio Tab (Tanpa Mic)
-          </button>
-        </div>
-
-        <div id="host-cc-preview" style="background:#101015; border:1px solid var(--border-soft); border-radius:10px; padding:12px; font-size:0.82rem; color:var(--text-gray); min-height:48px;">
-          Masukkan Groq API Key gratis, klik tombol di atas, lalu pilih tab video & centang <strong>"Bagikan audio tab"</strong>. Sistem hanya merekam suara dari tab tersebut (mikrofon mati total).
+          <button type="button" class="btn" style="background:#374151;" onclick="stopAllAndEnd()">⏹ AKHIRI SIARAN</button>
         </div>
       </div>
     </div>
@@ -500,6 +551,9 @@
 
     // 2. FIREBASE LISTENER & SWITCH CHANNEL
     function switchSite(newId) {
+      if (screenShareActive) stopScreenShareBroadcast();
+      if (standaloneCcActive) stopTabSubtitleLoop();
+
       streamRef.off();
       viewersRef.off();
       chatRef.off();
@@ -560,7 +614,7 @@
       });
     }
 
-    function saveAndSetStatus(status) {
+    function saveAndSetStatus(status, customSessionId = null) {
       const payload = {
         customHlsDomain: document.getElementById("custom-hls-domain").value.trim(),
         rtmpServer: document.getElementById("rtmp-server").value.trim(),
@@ -577,11 +631,18 @@
 
       if (status === "LIVE") {
         payload.startedAt = firebase.database.ServerValue.TIMESTAMP;
+        if (customSessionId) payload.sessionId = customSessionId;
       }
 
-      streamRef.update(payload).then(() => {
+      return streamRef.update(payload).then(() => {
         showToast(`Status diubah ke ${status}!`);
       });
+    }
+
+    function stopAllAndEnd() {
+      if (screenShareActive) stopScreenShareBroadcast(false);
+      if (standaloneCcActive) stopTabSubtitleLoop();
+      saveAndSetStatus("ENDED");
     }
 
     // 3. MODERASI LIVE CHAT
@@ -609,9 +670,8 @@
       });
     });
 
-    // 4. HOST AUTO-SUBTITLE 100% DARI AUDIO TAB (TANPA MIKROFON VIA GROQ WHISPER)
-    let hostCcActive = false;
-    let hostTabStream = null;
+    // 4. MESIN AUTO-SUBTITLE DARI AUDIO TAB (GROQ WHISPER -> INDONESIA)
+    let subtitleLoopActive = false;
     let tabAudioOnlyStream = null;
     let chunkLoopTimer = null;
     let lastSentSource = "";
@@ -643,9 +703,7 @@
       try {
         const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${groqKey}`
-          },
+          headers: { Authorization: `Bearer ${groqKey}` },
           body: formData
         });
 
@@ -669,19 +727,17 @@
           ? trData[0].map((item) => item[0]).join("")
           : spokenText;
 
-        previewEl.innerHTML = `<span style="color:#6e6e80;">[Audio Tab: ${spokenText}]</span><br><strong style="color:#fff;">🇮🇩 ${indonesianText}</strong>`;
+        previewEl.innerHTML = `<span style="color:#6e6e80;">[Tab: ${spokenText}]</span><br><strong style="color:#fff;">🇮🇩 ${indonesianText}</strong>`;
 
         streamRef.update({
           liveCaption: indonesianText,
           captionUpdatedAt: firebase.database.ServerValue.TIMESTAMP
         });
-      } catch (err) {
-        previewEl.textContent = "Menunggu potongan audio tab berikutnya...";
-      }
+      } catch (err) {}
     }
 
     function recordSingleTabChunk() {
-      if (!hostCcActive || !tabAudioOnlyStream) return;
+      if (!subtitleLoopActive || !tabAudioOnlyStream) return;
 
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
@@ -695,7 +751,7 @@
       };
 
       recorder.onstop = () => {
-        if (chunks.length > 0 && hostCcActive) {
+        if (chunks.length > 0 && subtitleLoopActive) {
           const fullBlob = new Blob(chunks, { type: mimeType });
           transcribeTabAudioChunk(fullBlob);
         }
@@ -703,45 +759,67 @@
 
       recorder.start();
       setTimeout(() => {
-        if (recorder.state !== "inactive") {
-          recorder.stop();
-        }
+        if (recorder.state !== "inactive") recorder.stop();
       }, 4200);
     }
 
-    async function toggleHostAutoSubtitle() {
-      const btn = document.getElementById("btn-host-auto-cc");
-      const statusEl = document.getElementById("host-cc-status");
+    function startTabSubtitleFromAudioTracks(audioTracks) {
       const previewEl = document.getElementById("host-cc-preview");
-
-      if (hostCcActive) {
-        hostCcActive = false;
-        clearInterval(chunkLoopTimer);
-        btn.textContent = "🔊 Tangkap Audio Tab (Tanpa Mic)";
-        btn.style.background = "#ff2e63";
-        statusEl.textContent = "OFF";
-        statusEl.style.color = "#6e6e80";
-
-        if (hostTabStream) {
-          hostTabStream.getTracks().forEach((t) => t.stop());
-          hostTabStream = null;
-        }
-        tabAudioOnlyStream = null;
-        streamRef.update({ liveCaption: "" });
-        return;
-      }
-
       const groqKey = document.getElementById("groq-api-key").value.trim();
+
+      if (!audioTracks || audioTracks.length === 0) {
+        previewEl.innerHTML = `<span style="color:#f5b041;">⚠️ Audio tab tidak dicentang. Video tetap live, tapi tanpa suara & auto-subtitle.</span>`;
+        return false;
+      }
+
       if (!groqKey) {
-        alert("Masukkan Groq API Key terlebih dahulu (gratis di console.groq.com/keys)!");
-        document.getElementById("groq-api-key").focus();
+        previewEl.innerHTML = `<span style="color:#f5b041;">ℹ️ Video & suara tab live! Isi Groq API Key di atas jika ingin mengaktifkan Auto-Subtitle Indonesia.</span>`;
+        return false;
+      }
+
+      stopTabSubtitleLoop();
+      tabAudioOnlyStream = new MediaStream(audioTracks);
+      subtitleLoopActive = true;
+      previewEl.textContent = "🎙️ Auto-Subtitle aktif! Menerjemahkan audio tab ke Bahasa Indonesia...";
+
+      recordSingleTabChunk();
+      chunkLoopTimer = setInterval(recordSingleTabChunk, 4300);
+      return true;
+    }
+
+    function stopTabSubtitleLoop() {
+      subtitleLoopActive = false;
+      clearInterval(chunkLoopTimer);
+      tabAudioOnlyStream = null;
+      streamRef.update({ liveCaption: "" }).catch(() => {});
+    }
+
+    // 5. SHARE SCREEN TAB LIVE (WEBRTC 720P 30FPS ANTI-PATAH-PATAH + AUTO-SUBTITLE)
+    let screenShareActive = false;
+    let hostScreenStream = null;
+    let activeWebRtcPeersRef = null;
+    const hostPeerConnections = {};
+
+    function updateRtcPeerCounter() {
+      const count = Object.keys(hostPeerConnections).length;
+      document.getElementById("rtc-peers-info").textContent = `Koneksi Penonton Share Screen: ${count} perangkat terhubung`;
+    }
+
+    async function toggleScreenShareBroadcast() {
+      if (screenShareActive) {
+        stopScreenShareBroadcast(true);
         return;
       }
+
       saveGroqKey();
 
       try {
-        hostTabStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
+        hostScreenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            frameRate: { ideal: 30, max: 30 }
+          },
           audio: {
             echoCancellation: false,
             noiseSuppression: false,
@@ -749,33 +827,206 @@
           }
         });
 
-        hostTabStream.getVideoTracks().forEach((t) => t.stop());
-        const audioTracks = hostTabStream.getAudioTracks();
+        // Optimasi gerakan video (konser/MV) agar 30 FPS mulus tanpa patah-patah
+        const videoTracks = hostScreenStream.getVideoTracks();
+        if (videoTracks[0] && "contentHint" in videoTracks[0]) {
+          videoTracks[0].contentHint = "motion";
+        }
 
-        if (audioTracks.length === 0) {
-          alert("Gagal: Anda belum mencentang kotak 'Bagikan audio tab' (Share tab audio)!");
-          hostTabStream.getTracks().forEach((t) => t.stop());
+        const audioTracks = hostScreenStream.getAudioTracks();
+
+        // Preview lokal di admin
+        const previewVideo = document.getElementById("host-screen-preview");
+        previewVideo.srcObject = hostScreenStream;
+
+        // Jika host klik "Stop sharing" di bar Chrome
+        videoTracks[0].onended = () => {
+          if (screenShareActive) stopScreenShareBroadcast(true);
+        };
+
+        screenShareActive = true;
+        const btn = document.getElementById("btn-start-screenshare");
+        btn.textContent = "⏹ Hentikan Share Screen Live";
+        btn.style.background = "#374151";
+
+        const pill = document.getElementById("screenshare-status-pill");
+        pill.textContent = "ON AIR (LIVE)";
+        pill.style.background = "#10b981";
+        pill.style.color = "#062419";
+
+        // Otomatis nyalakan Auto-Subtitle dari audio tab yang sama
+        startTabSubtitleFromAudioTracks(audioTracks);
+
+        // Siapkan signaling WebRTC di Firebase
+        const sessionId = "sess_" + Date.now();
+        document.getElementById("stream-url").value = "screenshare://tab-live";
+        document.getElementById("stream-type").value = "screenshare";
+
+        await db.ref(`streams/${currentSiteId}/webrtc`).remove();
+        activeWebRtcPeersRef = db.ref(`streams/${currentSiteId}/webrtc/${sessionId}/peers`);
+
+        activeWebRtcPeersRef.on("child_added", (snap) => {
+          handleIncomingViewerOffer(snap.key, snap.val(), activeWebRtcPeersRef);
+        });
+
+        activeWebRtcPeersRef.on("child_removed", (snap) => {
+          closeSingleHostPeer(snap.key);
+        });
+
+        await saveAndSetStatus("LIVE", sessionId);
+        showToast("Share Screen Tab LIVE! Penonton langsung tersambung.");
+      } catch (e) {
+        showToast("Share Screen dibatalkan.");
+      }
+    }
+
+    async function handleIncomingViewerOffer(viewerId, data, peersBaseRef) {
+      if (!data || !data.offer || !hostScreenStream || !screenShareActive) return;
+      closeSingleHostPeer(viewerId);
+
+      const peerRef = peersBaseRef.child(viewerId);
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" }
+        ]
+      });
+
+      hostPeerConnections[viewerId] = pc;
+      updateRtcPeerCounter();
+
+      // Tambahkan trek video & audio tab ke koneksi penonton ini
+      hostScreenStream.getTracks().forEach((track) => {
+        const sender = pc.addTrack(track, hostScreenStream);
+        if (track.kind === "video") {
+          try {
+            const params = sender.getParameters();
+            if (!params.encodings) params.encodings = [{}];
+            params.encodings[0].maxBitrate = 2000000; // 2 Mbps per penonton (jernih & ringan)
+            params.degradationPreference = "maintain-framerate";
+            sender.setParameters(params).catch(() => {});
+          } catch (e) {}
+        }
+      });
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          peerRef.child("hostCandidates").push(event.candidate.toJSON());
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+          closeSingleHostPeer(viewerId);
+        }
+      };
+
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await peerRef.child("answer").set({ type: answer.type, sdp: answer.sdp });
+
+        peerRef.child("viewerCandidates").on("child_added", async (cSnap) => {
+          const cand = cSnap.val();
+          if (cand && pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+          }
+        });
+      } catch (err) {
+        closeSingleHostPeer(viewerId);
+      }
+    }
+
+    function closeSingleHostPeer(viewerId) {
+      if (hostPeerConnections[viewerId]) {
+        try { hostPeerConnections[viewerId].close(); } catch (e) {}
+        delete hostPeerConnections[viewerId];
+        updateRtcPeerCounter();
+      }
+    }
+
+    function stopScreenShareBroadcast(setStandby = true) {
+      screenShareActive = false;
+      stopTabSubtitleLoop();
+
+      if (activeWebRtcPeersRef) {
+        activeWebRtcPeersRef.off();
+        activeWebRtcPeersRef = null;
+      }
+
+      Object.keys(hostPeerConnections).forEach(closeSingleHostPeer);
+
+      if (hostScreenStream) {
+        hostScreenStream.getTracks().forEach((t) => t.stop());
+        hostScreenStream = null;
+      }
+
+      const previewVideo = document.getElementById("host-screen-preview");
+      previewVideo.srcObject = null;
+
+      const btn = document.getElementById("btn-start-screenshare");
+      btn.textContent = "🚀 Mulai Share Screen Tab (+ Auto-Subtitle)";
+      btn.style.background = "";
+
+      const pill = document.getElementById("screenshare-status-pill");
+      pill.textContent = "SIAP";
+      pill.style.background = "#252530";
+      pill.style.color = "#fff";
+
+      document.getElementById("host-cc-preview").textContent = "Share Screen dihentikan.";
+
+      if (setStandby) {
+        saveAndSetStatus("STANDBY");
+      }
+    }
+
+    // 6. MODE CADANGAN: SUBTITLE TAB SAJA (JIKA PAKAI LINK URL / RTMP)
+    let standaloneCcActive = false;
+    let standaloneDisplayStream = null;
+
+    async function toggleStandaloneTabSubtitle() {
+      const btn = document.getElementById("btn-host-auto-cc");
+
+      if (standaloneCcActive) {
+        standaloneCcActive = false;
+        stopTabSubtitleLoop();
+        if (standaloneDisplayStream) {
+          standaloneDisplayStream.getTracks().forEach((t) => t.stop());
+          standaloneDisplayStream = null;
+        }
+        btn.textContent = "💬 Subtitle Tab Saja (Mode Link)";
+        return;
+      }
+
+      const groqKey = document.getElementById("groq-api-key").value.trim();
+      if (!groqKey) {
+        alert("Masukkan Groq API Key terlebih dahulu!");
+        document.getElementById("groq-api-key").focus();
+        return;
+      }
+      saveGroqKey();
+
+      try {
+        standaloneDisplayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+        });
+        standaloneDisplayStream.getVideoTracks().forEach((t) => t.stop());
+        const audioTracks = standaloneDisplayStream.getAudioTracks();
+
+        if (!startTabSubtitleFromAudioTracks(audioTracks)) {
+          standaloneDisplayStream.getTracks().forEach((t) => t.stop());
           return;
         }
 
-        tabAudioOnlyStream = new MediaStream(audioTracks);
-
         audioTracks[0].onended = () => {
-          if (hostCcActive) toggleHostAutoSubtitle();
+          if (standaloneCcActive) toggleStandaloneTabSubtitle();
         };
 
-        hostCcActive = true;
-        btn.textContent = "⏹ Hentikan Subtitle Tab";
-        btn.style.background = "#374151";
-        statusEl.textContent = "ON AIR (TAB AUDIO)";
-        statusEl.style.color = "#10b981";
-        previewEl.textContent = "Merekam & menerjemahkan audio langsung dari tab (mikrofon tidak dipakai)...";
-
-        recordSingleTabChunk();
-        chunkLoopTimer = setInterval(recordSingleTabChunk, 4300);
-      } catch (e) {
-        previewEl.textContent = "Izin tangkap audio tab dibatalkan.";
-      }
+        standaloneCcActive = true;
+        btn.textContent = "⏹ Stop Subtitle Tab";
+      } catch (e) {}
     }
 
     bindFirebaseListeners();
