@@ -900,7 +900,7 @@
           </div>
         </div>
 
-        <!-- PEMUTAR HLS / MP4 / YOUTUBE DIRECT BEBAS IKLAN -->
+        <!-- PEMUTAR UTAMA (SHARE SCREEN WEBRTC / HLS / MP4 / YOUTUBE BEBAS IKLAN) -->
         <video id="video-player" muted playsinline crossorigin="anonymous" style="display:none;" oncontextmenu="return false;"></video>
 
         <!-- PEMUTAR YOUTUBE API (CADANGAN FALLBACK) -->
@@ -1018,6 +1018,11 @@
     let lastTranslatedSource = "";
     let subClearTimer = null;
 
+    // WEBRTC SHARE SCREEN VIEWER STATE
+    let rtcPeer = null;
+    let rtcPeerRef = null;
+    let rtcViewerId = null;
+
     // ANTREAN AUTO-NEXT LAGU / MV K-POP (TANPA STOP & BEBAS IKLAN)
     let kpopQueue = [];
     let kpopQueueIndex = 0;
@@ -1031,7 +1036,6 @@
       "TQTlCHxyuu8"  // Stray Kids - God's Menu
     ];
 
-    // DAFTAR SERVER EKSTRAKTOR STREAM YOUTUBE BEBAS IKLAN (PIPED API)
     const PIPED_INSTANCES = [
       "https://pipedapi.kavin.rocks",
       "https://pipedapi.tokhmi.xyz",
@@ -1083,7 +1087,11 @@
       const targetSec = getTargetElapsedSeconds();
       syncClockEl.textContent = formatTime(targetSec);
 
-      if (currentMediaInfo && (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls") && currentMediaInfo.platform !== "youtube_direct") {
+      if (
+        currentMediaInfo &&
+        (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls") &&
+        currentMediaInfo.platform !== "youtube_direct"
+      ) {
         if (!videoEl.paused && videoEl.readyState >= 2 && isFinite(videoEl.duration)) {
           const clampedTarget = Math.min(targetSec, Math.max(0, videoEl.duration - 1));
           if (Math.abs(videoEl.currentTime - clampedTarget) > 2.5) {
@@ -1106,7 +1114,121 @@
       document.getElementById("viewer-count").textContent = snap.numChildren().toLocaleString("id-ID");
     });
 
-    // 3. YOUTUBE DIRECT STREAM BEBAS IKLAN + AUTO-NEXT K-POP ENGINE
+    // 3. WEBRTC VIEWER ENGINE (UNTUK SHARE SCREEN TAB REAL-TIME)
+    function cleanupWebRtcViewer() {
+      if (rtcPeerRef) {
+        try {
+          rtcPeerRef.off();
+          rtcPeerRef.remove().catch(() => {});
+        } catch (e) {}
+        rtcPeerRef = null;
+      }
+      if (rtcPeer) {
+        try { rtcPeer.close(); } catch (e) {}
+        rtcPeer = null;
+      }
+      if (videoEl.srcObject) {
+        videoEl.srcObject = null;
+      }
+    }
+
+    async function connectWebRtcViewer(sessionId) {
+      cleanupWebRtcViewer();
+
+      iframeEl.style.display = "none";
+      ytContainerEl.style.display = "none";
+      videoEl.style.display = "block";
+      videoEl.muted = isMuted;
+      showNotice("Menghubungkan siaran layar langsung...");
+
+      const sid = sessionId || "default_session";
+      const peersListRef = db.ref(`streams/${SITE_ID}/webrtc/${sid}/peers`);
+      rtcPeerRef = peersListRef.push();
+      rtcViewerId = rtcPeerRef.key;
+      rtcPeerRef.onDisconnect().remove();
+
+      rtcPeer = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" }
+        ]
+      });
+
+      rtcPeer.addTransceiver("video", { direction: "recvonly" });
+      rtcPeer.addTransceiver("audio", { direction: "recvonly" });
+
+      const remoteStream = new MediaStream();
+      videoEl.srcObject = remoteStream;
+
+      rtcPeer.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          videoEl.srcObject = event.streams[0];
+        } else {
+          remoteStream.addTrack(event.track);
+        }
+        showNotice("");
+        videoEl.play().catch(() => {});
+      };
+
+      rtcPeer.onicecandidate = (event) => {
+        if (event.candidate && rtcPeerRef) {
+          rtcPeerRef.child("viewerCandidates").push(event.candidate.toJSON());
+        }
+      };
+
+      rtcPeer.onconnectionstatechange = () => {
+        if (!rtcPeer) return;
+        const st = rtcPeer.connectionState;
+        if (st === "connected") {
+          showNotice("");
+          videoEl.play().catch(() => {});
+        } else if (st === "disconnected" || st === "failed") {
+          showNotice("Koneksi tersendat, menyambungkan ulang...");
+          setTimeout(() => {
+            if (currentData && currentData.status === "LIVE" && currentData.streamType === "screenshare") {
+              connectWebRtcViewer(currentData.sessionId);
+            }
+          }, 2500);
+        }
+      };
+
+      const offer = await rtcPeer.createOffer();
+      await rtcPeer.setLocalDescription(offer);
+
+      await rtcPeerRef.set({
+        offer: { type: offer.type, sdp: offer.sdp },
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      let remoteDescSet = false;
+      const pendingHostCandidates = [];
+
+      rtcPeerRef.child("answer").on("value", async (snap) => {
+        const ans = snap.val();
+        if (ans && rtcPeer && !remoteDescSet) {
+          try {
+            await rtcPeer.setRemoteDescription(new RTCSessionDescription(ans));
+            remoteDescSet = true;
+            while (pendingHostCandidates.length > 0) {
+              const cand = pendingHostCandidates.shift();
+              await rtcPeer.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+            }
+          } catch (e) {}
+        }
+      });
+
+      rtcPeerRef.child("hostCandidates").on("child_added", async (snap) => {
+        const cand = snap.val();
+        if (!cand || !rtcPeer) return;
+        if (remoteDescSet) {
+          await rtcPeer.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+        } else {
+          pendingHostCandidates.push(cand);
+        }
+      });
+    }
+
+    // 4. YOUTUBE DIRECT STREAM BEBAS IKLAN + AUTO-NEXT K-POP ENGINE
     function extractYouTubeId(url) {
       const m = url.trim().match(/(?:youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
       return m ? m[1] : null;
@@ -1249,14 +1371,13 @@
       }
     }
 
-    // Event saat video direct bebas iklan selesai -> otomatis lanjut ke K-Pop berikutnya
     videoEl.onended = () => {
       if (currentMediaInfo && currentMediaInfo.platform === "youtube_direct") {
         playNextKpopVideo();
       }
     };
 
-    // 4. SUBTITLE INDONESIA (ANDROID / IOS / PC)
+    // 5. SUBTITLE INDONESIA (ANDROID / IOS / PC)
     async function translateToIndonesian(text) {
       const clean = text.trim();
       if (!clean || clean === lastTranslatedSource) return;
@@ -1331,7 +1452,7 @@
       }
     }
 
-    // 5. MENU KUALITAS VIDEO DINAMIS (HLS RTMP, YouTube Bebas Iklan, Twitch)
+    // 6. MENU KUALITAS VIDEO DINAMIS
     function toggleQualityMenu(e) {
       e.stopPropagation();
       const isOpen = qualityMenuEl.classList.toggle("open");
@@ -1369,6 +1490,11 @@
       });
 
       if (!currentMediaInfo) return;
+
+      if (currentMediaInfo.mode === "screenshare") {
+        showNotice("Kualitas Share Screen mengikuti siaran langsung (720p HD)", 2000);
+        return;
+      }
 
       if (hls && hls.levels && hls.levels.length > 0) {
         if (val === "auto") {
@@ -1426,9 +1552,13 @@
       return media.rawUrl;
     }
 
-    // 6. UNIVERSAL LINK RESOLVER (YOUTUBE BEBAS IKLAN, TWITCH, GDRIVE, HLS, MP4, WEB IFRAME)
+    // 7. UNIVERSAL LINK RESOLVER
     function resolveMediaSource(rawUrl, forcedType) {
-      const url = rawUrl.trim();
+      if (forcedType === "screenshare" || rawUrl === "screenshare://tab-live") {
+        return { mode: "screenshare", platform: "screenshare" };
+      }
+
+      const url = (rawUrl || "").trim();
 
       const ytId = extractYouTubeId(url);
       if (ytId) {
@@ -1461,7 +1591,7 @@
       return { mode: "iframe", platform: "web_embed", cropped: false, rawUrl: url };
     }
 
-    // 7. KONTROL SUARA & SINKRONISASI DETIK
+    // 8. KONTROL SUARA & SINKRONISASI DETIK
     function activateAudioAndPlay() {
       isMuted = false;
       unmuteBannerEl.classList.add("hidden");
@@ -1475,13 +1605,13 @@
         sendYouTubeCommand("playVideo");
       } else if (currentMediaInfo.platform === "twitch_chan" || currentMediaInfo.platform === "twitch_vod") {
         iframeEl.src = buildIframeUrl(currentMediaInfo, false, selectedQualityValue);
-      } else if (currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls") {
+      } else if (currentMediaInfo.mode === "screenshare" || currentMediaInfo.mode === "mp4" || currentMediaInfo.mode === "hls") {
         videoEl.muted = false;
         videoEl.volume = 1.0;
         videoEl.play().catch(() => {});
       }
 
-      if (currentMediaInfo.platform !== "youtube_direct") {
+      if (currentMediaInfo.platform !== "youtube_direct" && currentMediaInfo.mode !== "screenshare") {
         syncToLiveNow();
       }
     }
@@ -1508,6 +1638,12 @@
       if (!currentData || currentData.status !== "LIVE" || !currentMediaInfo) return;
       const targetSec = getTargetElapsedSeconds();
 
+      if (currentMediaInfo.mode === "screenshare") {
+        showNotice("Menyegarkan sinyal Share Screen...", 1800);
+        connectWebRtcViewer(currentData.sessionId);
+        return;
+      }
+
       if (currentMediaInfo.platform === "youtube") {
         sendYouTubeCommand("seekTo", [targetSec, true]);
         sendYouTubeCommand("playVideo");
@@ -1531,7 +1667,7 @@
       }
     }
 
-    // 8. REAL-TIME DATA SIARAN & THUMBNAIL
+    // 9. REAL-TIME DATA SIARAN & THUMBNAIL
     streamRef.on("value", (snap) => {
       const data = snap.val();
 
@@ -1551,6 +1687,7 @@
       const prevType = currentData ? currentData.streamType : "";
       const prevStatus = currentData ? currentData.status : "";
       const prevStartedAt = currentData ? currentData.startedAt : 0;
+      const prevSessionId = currentData ? currentData.sessionId : "";
       const prevCaption = currentData ? currentData.liveCaption : "";
       const prevPlaylist = currentData ? currentData.kpopPlaylist : "";
       currentData = data;
@@ -1578,16 +1715,20 @@
       const status = (data.status || "STANDBY").toUpperCase();
       setStatus(status);
 
-      if (status === "LIVE" && data.streamUrl && data.streamUrl.trim() !== "") {
+      const isScreenShare = data.streamType === "screenshare";
+      const hasValidSource = isScreenShare || (data.streamUrl && data.streamUrl.trim() !== "");
+
+      if (status === "LIVE" && hasValidSource) {
         coverEl.classList.add("hidden");
         if (
           prevUrl !== data.streamUrl ||
           prevType !== data.streamType ||
           prevStatus !== "LIVE" ||
           prevStartedAt !== data.startedAt ||
+          prevSessionId !== data.sessionId ||
           prevPlaylist !== data.kpopPlaylist
         ) {
-          playStream(data.streamUrl.trim(), data.streamType || "auto");
+          playStream(data.streamUrl || "", data.streamType || "auto", data.sessionId);
         }
       } else {
         stopStream();
@@ -1610,7 +1751,7 @@
       }
     }
 
-    // 9. PEMUTAR HLS & MP4 DIRECT (DIPAKAI OLEH RTMP & YOUTUBE BEBAS IKLAN)
+    // 10. PEMUTAR HLS & MP4 DIRECT
     function playHlsDirect(hlsUrl, skipServerSync = false) {
       if (hls) {
         hls.destroy();
@@ -1722,8 +1863,8 @@
       };
     }
 
-    // 10. PEMUTAR STREAM UNIVERSAL (YOUTUBE BEBAS IKLAN + IFRAME EMBED + HLS RTMP + MP4)
-    function playStream(rawUrl, type) {
+    // 11. PEMUTAR STREAM UNIVERSAL
+    function playStream(rawUrl, type, sessionId) {
       stopStream();
       setDefaultQualityOptions();
 
@@ -1735,7 +1876,11 @@
       unmuteBannerEl.classList.remove("hidden");
       soundToggleBtn.textContent = "🔇 Suara Mati";
 
-      if (media.mode === "youtube") {
+      if (media.mode === "screenshare") {
+        buildQualityMenuOptions([{ value: "auto", label: "720p Live (Otomatis)", badge: "HD" }]);
+        qualityBtnEl.textContent = "⚙ 720p Live";
+        connectWebRtcViewer(sessionId);
+      } else if (media.mode === "youtube") {
         videoEl.style.display = "none";
         iframeEl.style.display = "none";
         playYouTubeAdFree(media.videoId, false);
@@ -1757,6 +1902,7 @@
     }
 
     function stopStream() {
+      cleanupWebRtcViewer();
       if (hls) {
         hls.destroy();
         hls = null;
@@ -1788,7 +1934,7 @@
       });
     }
 
-    // 11. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
+    // 12. REAL-TIME LIVE CHAT + HAPUS OTOMATIS TIAP 2 MENIT
     const EXPIRE_MS = 2 * 60 * 1000;
     const shownKeys = new Set();
     const avatarColors = ["#e11d48", "#7c3aed", "#2563eb", "#059669", "#d97706", "#db2777"];
